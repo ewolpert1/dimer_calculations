@@ -1,9 +1,14 @@
-from Functions import *
+#from Functions import *
 #from read_energies_catenated import *
-from collect_lowest import *
-import config
-import utils
-from read_energies_catenated_single import *
+#from collect_lowest import *
+#import config
+#import utils
+import dimer_calc
+from dimer_calc.Functions import *
+from dimer_calc.utils import *
+from dimer_calc.cage import *
+from dimer_calc.config import *
+from dimer_calc.read_energies_catenated_single import *
 
 cages_folder_path = config.CAGES_FOLDER_PATH
 SCHRODINGER_PATH=config.SCHRODINGER_PATH
