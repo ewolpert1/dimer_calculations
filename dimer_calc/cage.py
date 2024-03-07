@@ -3,6 +3,7 @@ import stk
 import rdkit.Chem.AllChem as rdkit
 import numpy as np
 from . import utils
+from rdkit import Chem
 
 class Cage:
     def __init__(self, file_path=None, molecule=None):
@@ -48,18 +49,12 @@ class Cage:
             position_matrix=rdkit_bb2.GetConformer().GetPositions(),
         )
 
-        # Verify Kekulization
-        for bond in bb1.to_rdkit_mol().GetBonds():
-            assert bond.GetBondTypeAsDouble() != 1.5
-        for bond in bb2.to_rdkit_mol().GetBonds():
-            assert bond.GetBondTypeAsDouble() != 1.5
-
         # Construct the cage
         self.cage = stk.ConstructedMolecule(
-            topology_graph=stk.cage.FourPlusSix((bb1, bb2))
+            topology_graph=stk.cage.FourPlusSix((bb1, bb2)),
+            optimizer=stk.MCHammer(),
         )
         self.cage = self.cage.with_centroid([0, 0, 0])
-
     # Add other methods as necessary, like optimize, calculate vectors, etc.
 
 
@@ -86,6 +81,24 @@ class CageOperations:
         centroid_mol = self.get_centroid()
         vectors = np.array([(arene - centroid_mol) / np.linalg.norm(arene - centroid_mol) for arene in arenes])
         return vectors[0]
+
+    def cage_size(self, arene_smile):
+        """
+        Calculate the average distance between the centroid of a cage and its arenes.
+
+        Parameters:
+        - cage: The stk cage molecule.
+        - arene_smile: SMILES string representing the arene component.
+
+        Returns:
+        - The average distance between the centroid of the cage and its arenes.
+        """
+        rdkit_mol = self.to_rdkit_mol()
+        rdkit.SanitizeMol(rdkit_mol)
+        arenes = [self.get_centroid(atom_ids=atom_ids) for atom_ids in rdkit_mol.GetSubstructMatches(query=rdkit.MolFromSmarts(arene_smile))]
+        centroid_mol = np.mean(arenes, axis=0)
+        distances = [np.linalg.norm(arene - centroid_mol) for arene in arenes]
+        return np.mean(distances)
 
     def generate_new_cages(self, guest_bb_aa, guest_bb_ww, guest_bb_wa, direction_vector, perpendicular_vector, rotated_vectors, displacement_distance):
         """
@@ -133,7 +146,7 @@ class CageOperations:
             list_wa.append(list_wa_run)
             list_ww.append(list_ww_run)
             list_aa.append(list_aa_run)
-        return list_wa, list_ww, list_aa, list_centroids
+        return list_wa, list_ww, list_aa
     
     def generate_ww_cages(cage,guest_bb_ww, vec, vec_perpendicular, rotated_vectors, dist):  
         """
@@ -174,4 +187,60 @@ class CageOperations:
                     )
                     list_ww_run.append(complex_ww)
             list_ww.append(list_ww_run)
-        return  list_ww, list_centroids
+        return  list_ww
+    
+    def fix_atom_set(self, diamine_smiles):
+        """
+        Return the atom IDs of the carbon atoms from the diamine that are adjacent to the amine nitrogen atoms.
+    
+        Args:
+        - mol_file_path (str): Path to the .mol file.
+        - diamine_smiles (str): SMILES string of the diamine. Default is "NC1CCCCC1N".
+    
+        Returns:
+        - List[int]: List of atom IDs.
+        """
+    
+        # Use the SMILES string of the diamine to identify its structure
+        diamine = Chem.MolFromSmiles(diamine_smiles)
+    
+        # Get the substructure matches for the diamine
+        matches = self.GetSubstructMatches(diamine)
+    
+        # List to store carbon atom ids
+        carbon_ids = []
+    
+        # Iterate over the matches
+        for match in matches:
+            for atom_id in match:
+                atom = self.GetAtomWithIdx(atom_id)
+                # Check if the atom is carbon and adjacent to nitrogen
+                if atom.GetSymbol() == "C" and any([neighbor.GetSymbol() == "N" for neighbor in atom.GetNeighbors()]):
+                    carbon_ids.append(atom_id)
+    
+        return carbon_ids
+
+
+    def cage_vertex_vec(self, amine_smile):
+        """
+        Returns the vector of average distance between the centroid of the cage and arenes
+
+        """
+
+        #pdb_file = "%s.pdb"%(cagename)
+        rdkit_mol = self.to_rdkit_mol()
+        rdkit.SanitizeMol(rdkit_mol)
+        arenes = []
+        for atom_ids in rdkit_mol.GetSubstructMatches(
+            query=rdkit.MolFromSmarts(amine_smile),
+        ):
+            centroid = self.get_centroid(atom_ids=atom_ids)
+            arenes.append(centroid)
+        arenes=np.asarray(arenes)
+        centroid_mol=self.get_centroid()
+        vec=np.zeros((len(arenes),3))
+        for i in range(len(arenes)):
+            vec[i] = (arenes[i]-centroid_mol)
+            vec[i]=vec[i]/(np.sqrt(np.dot(vec[i],vec[i])))
+        return vec[0]
+

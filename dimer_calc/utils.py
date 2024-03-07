@@ -245,6 +245,17 @@ def generate_rotated_vectors(base_vector, num_steps, angle_interval):
     angles = np.arange(num_steps) * angle_interval
     return np.array([rotate_vector(perpendicular_vector, axis, angle) for angle in angles])
 
+def create_folders_and_return_paths(parent_folder, suffixes):
+    folder_paths = []  # Initialize a list to store the paths of the new folders
+    for suffix in suffixes:
+        # Construct the new folder path
+        new_folder_path = os.path.join(parent_folder, parent_folder + suffix)
+        # Create the new folder
+        os.makedirs(new_folder_path, exist_ok=True)
+        # Append the new folder path to the list
+        folder_paths.append(new_folder_path)
+    return folder_paths
+
 def run_a_cage_script(cage_number):
     """
     Executes the run_a_cage.sh script for the specified cage number.
@@ -273,3 +284,111 @@ def run_a_cage_script(cage_number):
         print(f"Successfully executed run_a_cage.sh for {cage_number}")
     except subprocess.CalledProcessError as e:
         print(f"Error running run_a_cage.sh for {cage_number}: {e}")
+
+def generate_rotated_vectors(base_vector, num_steps, angle_interval):
+    """
+    Generate a set of vectors rotated around the base vector.
+
+    Parameters:
+    - base_vector: The base vector around which the rotations will be performed.
+    - num_steps: Number of vectors to generate.
+    - angle_interval: Angle interval between each vector in degrees.
+
+    Returns:
+    - An array of rotated vectors.
+    """
+    base_vector = normalize_vector(base_vector)
+    perpendicular_vector = calculate_perpendicular_vector(base_vector)
+    perpendicular_vector = normalize_vector(perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector)
+    axis = base_vector
+    angle_interval = np.radians(angle_interval)
+    angles = np.arange(num_steps) * angle_interval
+    return np.array([rotate_vector(perpendicular_vector, axis, angle) for angle in angles])
+
+def write_molecule_to_mol_file(molecule, num, mode, dis, rot):
+    """
+    Save a given molecule to a .mol file with a specific naming convention.
+
+    Parameters:
+    - molecule: The stk molecule to be saved.
+    - num: Identifier for the cage.
+    - mode: The packing mode (e.g., 'wa', 'ww', 'aa').
+    - dis: Displacement identifier.
+    - rot: Rotation identifier.
+
+    Example output file path: 'Cage100/Cage100_wa/Cage_100_1_1_wa.mol'
+    """
+    stk.MolWriter().write(
+        molecule=molecule,
+        path=f'Cage{num}/Cage{num}_{mode}/Cage_{num}_{dis}_{rot}_{mode}.mol'
+    )
+
+# %%
+def mol_to_smiles(filepath):
+    """
+    Converts a .mol file to a SMILES string.
+    
+    Args:
+    - filepath: Path to the .mol file.
+    
+    Returns:
+    - A SMILES string representation of the molecule.
+    """
+    mol = Chem.MolFromMolFile(filepath)
+    return Chem.MolToSmiles(mol)
+
+def midpoint(conf, idx1, idx2):
+    """Calculate the midpoint of two atoms."""
+    pos1 = np.array(conf.GetAtomPosition(idx1))
+    pos2 = np.array(conf.GetAtomPosition(idx2))
+    return (pos1 + pos2) / 2
+
+def distance(point1, point2):
+    """Calculate the distance between two points."""
+    return np.linalg.norm(point1 - point2)
+
+def closest_point_on_segment(point, segment_start, segment_end):
+    """Find the closest point on the line segment to the given point."""
+    seg_vec = segment_end - segment_start
+    pt_vec = point - segment_start
+    seg_len = np.linalg.norm(seg_vec)
+    seg_unit_vec = seg_vec / seg_len
+    projection_length = np.dot(pt_vec, seg_unit_vec)
+    if projection_length < 0:
+        return segment_start
+    if projection_length > seg_len:
+        return segment_end
+    return segment_start + projection_length * seg_unit_vec
+
+def check_overlaps(mol, threshold=0.8):
+    """
+    Check for overlaps between atoms in a molecule.
+    
+    Args:
+    - mol (rdkit.Chem.Mol): The molecule to check.
+    - threshold (float): Distance threshold for overlap detection.
+    
+    Returns:
+    - overlaps (list): List of tuples with overlapping atom indices and their distance.
+    """
+    overlaps = []
+    
+    # Calculate pairwise distances
+    conf = mol.GetConformer()
+    for i in range(mol.GetNumAtoms()):
+        if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:
+            continue
+            
+        for j in range(i+1, mol.GetNumAtoms()):
+            # Skip hydrogen atoms
+            if mol.GetAtomWithIdx(j).GetAtomicNum() == 1:
+                continue
+            
+            dist = rdMolTransforms.GetBondLength(conf, i, j)
+            if dist < threshold:
+                overlaps.append((i, j, dist))
+                break  # Remove this break if you want to find all overlaps for each atom
+            
+                
+    return overlaps
+
