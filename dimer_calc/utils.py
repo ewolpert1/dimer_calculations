@@ -43,6 +43,40 @@ def normalize_vector(vector):
     """
     return vector / np.linalg.norm(vector)
 
+def generate_com_content(fix_atoms):
+    """
+    Generate the content of a .com file used for minimization, including fixed atoms.
+    Args:
+    - fix_atoms: List of atom indices to be fixed.
+    Returns:
+    - A list of strings, each representing a line in the .com file.
+    """
+    header = [
+        "merged.mae",
+        " merged.maegz",
+        " MMOD       0      1      0      0     0.0000     0.0000     0.0000     0.0000",
+        " DEBG      55      0      0      0     0.0000     0.0000     0.0000     0.0000",
+        " FFLD      16      1      0      0     1.0000     0.0000     0.0000     0.0000",
+        " BDCO       0      0      0      0    41.5692 99999.0000     0.0000     0.0000",
+        " CRMS       0      0      0      0     0.0000     0.5000     0.0000     0.0000",
+        " BGIN       0      0      0      0     0.0000     0.0000     0.0000     0.0000",
+        " READ       0      0      0      0     0.0000     0.0000     0.0000     0.0000",
+    ]
+
+    footer = [
+        " CONV       2      0      0      0     0.0500     0.0000     0.0000     0.0000",
+        " MINI       1      0   2500      0     0.0000     0.0000     0.0000     0.0000",
+        " END        0      0      0      0     0.0000     0.0000     0.0000     0.0000"
+    ]
+    # Combine header, fxat lines for fixed atoms, and footer
+    if fix_atoms:
+        fxat_lines = [
+            f" FXAT     {atom:>3}      0      0      0   100.0000     0.0000     0.0000     0.0000" for atom in fix_atoms
+        ]
+        com_content = header + fxat_lines + footer
+    else:
+        com_content = header + footer
+    return com_content
 
 def rotate_vector(v, axis, angle):
     """

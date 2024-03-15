@@ -4,6 +4,7 @@ import rdkit.Chem.AllChem as rdkit
 import numpy as np
 from . import utils
 from rdkit import Chem
+import itertools
 
 class Cage:
     def __init__(self, file_path=None, molecule=None):
@@ -100,7 +101,7 @@ class CageOperations:
         distances = [np.linalg.norm(arene - centroid_mol) for arene in arenes]
         return np.mean(distances)
 
-    def generate_new_cages(self, guest_bb_aa, guest_bb_ww, guest_bb_wa, direction_vector, perpendicular_vector, rotated_vectors, displacement_distance):
+    def generate_new_cages(self, guest_bb_aa, guest_bb_ww, guest_bb_wa,guest_bb_wv,  direction_vector_w, direction_vector_a, rotated_vectors_w,rotated_vectors_a, displacement_distance):
         """
         Generate new cage complexes with various packings and rotations.
 
@@ -118,17 +119,20 @@ class CageOperations:
         - Lists of constructed complexes with different packings and rotations.
         - A list of centroids for all displaced cages.
         """
-        list_wa, list_ww, list_aa, list_centroids = [], [], [], []
+        perpendicular_vector_w = utils.calculate_perpendicular_vector(direction_vector_w)
+        perpendicular_vector_a = utils.calculate_perpendicular_vector(direction_vector_a)
+        list_wa, list_ww, list_aa, list_wv = [], [], [], []
         for i in np.arange(0, 7, 1):
-            list_wa_run,list_ww_run,list_aa_run  = [],[],[]
-            displaced_centers =utils.find_integer_points(direction_vector, displacement_distance*2-2+i, int(displacement_distance) + 1)
+            list_wa_run,list_ww_run,list_aa_run, list_wv_run  = [],[],[], []
+            displaced_centers_w =utils.find_integer_points(direction_vector_w, displacement_distance*2-2+i, int(displacement_distance) + 1)
+            displaced_centers_a =utils.find_integer_points(direction_vector_a, displacement_distance*2-2+i, int(displacement_distance) + 1)
 
-            for center in displaced_centers:
-                for rotation_vector in rotated_vectors:
-                    list_centroids.append(center)
-                    guest_aa = utils.create_rotated_guest(guest_bb_aa, perpendicular_vector, rotation_vector, center)
-                    guest_wa = utils.create_rotated_guest(guest_bb_wa, perpendicular_vector, rotation_vector, center)
-                    guest_ww = utils.create_rotated_guest(guest_bb_ww, perpendicular_vector, rotation_vector, center * -1)
+            for center in range(len(displaced_centers_w)):
+                for rotation_vector in range(len(rotated_vectors_w)):
+                    guest_aa = utils.create_rotated_guest(guest_bb_aa, perpendicular_vector_a, rotated_vectors_a[rotation_vector], displaced_centers_a[center])
+                    guest_wa = utils.create_rotated_guest(guest_bb_wa, perpendicular_vector_w, rotated_vectors_w[rotation_vector], displaced_centers_w[center])
+                    guest_wv = utils.create_rotated_guest(guest_bb_wv, perpendicular_vector_w, rotated_vectors_w[rotation_vector], displaced_centers_w[center])
+                    guest_ww = utils.create_rotated_guest(guest_bb_ww, perpendicular_vector_w, rotated_vectors_w[rotation_vector], displaced_centers_w[center] * -1)
 
                     complex_wa = stk.ConstructedMolecule(
                         topology_graph=stk.host_guest.Complex(host=self, guests=guest_wa)
@@ -139,14 +143,19 @@ class CageOperations:
                     complex_aa = stk.ConstructedMolecule(
                         topology_graph=stk.host_guest.Complex(host=self, guests=guest_aa)
                     )
-
+                    complex_wv = stk.ConstructedMolecule(
+                        topology_graph=stk.host_guest.Complex(host=self, guests=guest_wv)
+                    )
+      
                     list_wa_run.append(complex_wa)
                     list_ww_run.append(complex_ww)
                     list_aa_run.append(complex_aa)
+                    list_wv_run.append(complex_wv)
             list_wa.append(list_wa_run)
             list_ww.append(list_ww_run)
             list_aa.append(list_aa_run)
-        return list_wa, list_ww, list_aa
+            list_wv.append(list_wv_run)
+        return list_wa, list_ww, list_aa, list_wv
     
     def generate_ww_cages(cage,guest_bb_ww, vec, vec_perpendicular, rotated_vectors, dist):  
         """
@@ -166,30 +175,9 @@ class CageOperations:
 
         """
 
-        list_ww = []
-        list_centroids = []
-        for i in np.arange(0, 7, 1):
-            list_ww_run = []
-            displaced_centres=utils.find_integer_points(vec, dist*2-2+i,int(dist)+1)
 
-            for k in range(len(displaced_centres)):
-                for j in range(len(rotated_vectors)):
-                    vec_new = displaced_centres[k]
-                    #vec_new = displace_vector(vec, dist)
-                    list_centroids.append(vec_new)
-                    #print((rotated_vectors[j]),k*len(rotated_vectors)+j,i)
-                    guest_ww = utils.create_rotated_guest(guest_bb_ww, vec_perpendicular, rotated_vectors[j], vec_new*-1)
-                    complex_ww = stk.ConstructedMolecule(
-                        topology_graph=stk.host_guest.Complex(
-                            host=cage,
-                            guests=guest_ww,
-                        ),
-                    )
-                    list_ww_run.append(complex_ww)
-            list_ww.append(list_ww_run)
-        return  list_ww
     
-    def fix_atom_set(self, diamine_smiles):
+    def fix_atom_set(self, diamine_smiles,metal_atom=None):
         """
         Return the atom IDs of the carbon atoms from the diamine that are adjacent to the amine nitrogen atoms.
     
@@ -208,17 +196,23 @@ class CageOperations:
         matches = self.GetSubstructMatches(diamine)
     
         # List to store carbon atom ids
-        carbon_ids = []
+        fixed_atom_ids = []
     
         # Iterate over the matches
-        for match in matches:
-            for atom_id in match:
-                atom = self.GetAtomWithIdx(atom_id)
-                # Check if the atom is carbon and adjacent to nitrogen
-                if atom.GetSymbol() == "C" and any([neighbor.GetSymbol() == "N" for neighbor in atom.GetNeighbors()]):
-                    carbon_ids.append(atom_id)
-    
-        return carbon_ids
+        if (metal_atom!=None):  # Checks if metal_ids is not empty
+            for atom in self.GetAtoms():
+                # Check if the atom symbol matches metal_atom
+                if atom.GetSymbol() == metal_atom:
+                    # Append the atom's index if it matches
+                    fixed_atom_ids.append(atom.GetIdx())
+        else:
+            for match in matches:
+                for atom_id in match:
+                    atom = self.GetAtomWithIdx(atom_id)
+                    # Check if the atom is carbon and adjacent to nitrogen
+                    if atom.GetSymbol() == "C" and any([neighbor.GetSymbol() == "N" for neighbor in atom.GetNeighbors()]):
+                        fixed_atom_ids.append(atom_id)
+        return fixed_atom_ids
 
 
     def cage_vertex_vec(self, amine_smile):
@@ -242,5 +236,20 @@ class CageOperations:
         for i in range(len(arenes)):
             vec[i] = (arenes[i]-centroid_mol)
             vec[i]=vec[i]/(np.sqrt(np.dot(vec[i],vec[i])))
-        return vec[0]
+        return vec
 
+    def find_midpoint_of_facet(self,vectors, tolerance=0.1):
+        # Calculate all distances and find the minimum non-zero distance
+        all_distances = [utils.distance(v1, v2) for v1, v2 in itertools.combinations(vectors, 2)]
+        min_distance = min(filter(lambda d: d > 0, all_distances))
+
+        # Iterate through all combinations of three vectors
+        for v1, v2, v3 in itertools.combinations(vectors, 3):
+            # Calculate distances between the vectors
+            d1, d2, d3 = utils.distance(v1, v2), utils.distance(v2, v3), utils.distance(v3, v1)
+
+            # Check if the distances are close to each other within the defined tolerance
+            if max(d1, d2, d3) - min(d1, d2, d3) <= tolerance * min_distance:
+                # Calculate the midpoint of the facet
+                midpoint = [(v1[0] + v2[0] + v3[0]) / 3, (v1[1] + v2[1] + v3[1]) / 3, (v1[2] + v2[2] + v3[2]) / 3]
+                return midpoint

@@ -35,7 +35,12 @@ for filename in os.listdir('cages'):
 #
         #current_dir = os.getcwd()
         #cage_number=f'Cage{filename[:-4]}'
-        #minimum_energy = read_energy(f'{cage_number}_mae', cage_number,f"{current_dir}","lowest_dimers")
+        #energy_reader = XTBEnergyReader(cage_name_xtb=f'{cage_number}_xtb',
+        #                         cage_name=cage_number,
+        #                         current_directory=f"{current_dir}",
+        #                         destination_folder_end="lowest_dimers_xtb")
+        #minimum_energy = energy_reader.read_energy()
+
         #run_calc(current_dir,cage_number,"lowest_dimers")
 
 

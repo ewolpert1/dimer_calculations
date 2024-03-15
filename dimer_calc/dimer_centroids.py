@@ -80,7 +80,14 @@ def separate_molecules(atom_data, bond_data):
 
     molecules = []
     for component in nx.connected_components(G):
-        molecule = [atom_dict[i] for i in component]
+        #print(component, len(component),len(atom_dict),atom_dict[2])
+        #molecule = [atom_dict[i] for i in component]
+        molecule=[]
+        for i in component:
+            if atom_dict.get(i) is None:
+                print(f"Key {i} not found in atom_dict")
+            else:
+                molecule.append(atom_dict[i])
         molecules.append(molecule)
 
     return molecules
@@ -94,6 +101,8 @@ def return_centroids(mol_file):
 
 # Parsing atom and bond data
     atom_data, bond_data = parse_atom_and_bond_data(mol_data)
+    #print(atom_data)
+    #print(bond_data)
 
 # Separating the molecules
     molecules = separate_molecules(atom_data, bond_data)
