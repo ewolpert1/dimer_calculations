@@ -238,18 +238,74 @@ class CageOperations:
             vec[i]=vec[i]/(np.sqrt(np.dot(vec[i],vec[i])))
         return vec
 
-    def find_midpoint_of_facet(self,vectors, tolerance=0.1):
+    def find_midpoint_of_facet(self,vectors, tolerance=0.1,symmetry=3):
         # Calculate all distances and find the minimum non-zero distance
         all_distances = [utils.distance(v1, v2) for v1, v2 in itertools.combinations(vectors, 2)]
         min_distance = min(filter(lambda d: d > 0, all_distances))
 
         # Iterate through all combinations of three vectors
-        for v1, v2, v3 in itertools.combinations(vectors, 3):
-            # Calculate distances between the vectors
-            d1, d2, d3 = utils.distance(v1, v2), utils.distance(v2, v3), utils.distance(v3, v1)
+        if symmetry==3:
+            for v1, v2, v3 in itertools.combinations(vectors, 3):
+                # Calculate distances between the vectors
+                d1, d2, d3 = utils.distance(v1, v2), utils.distance(v2, v3), utils.distance(v3, v1)
 
-            # Check if the distances are close to each other within the defined tolerance
-            if max(d1, d2, d3) - min(d1, d2, d3) <= tolerance * min_distance:
-                # Calculate the midpoint of the facet
-                midpoint = [(v1[0] + v2[0] + v3[0]) / 3, (v1[1] + v2[1] + v3[1]) / 3, (v1[2] + v2[2] + v3[2]) / 3]
-                return midpoint
+                # Check if the distances are close to each other within the defined tolerance
+                if max(d1, d2, d3) - min(d1, d2, d3) <= tolerance * min_distance:
+                    # Calculate the midpoint of the facet
+                    midpoint = [(v1[0] + v2[0] + v3[0]) / 3, (v1[1] + v2[1] + v3[1]) / 3, (v1[2] + v2[2] + v3[2]) / 3]
+                    return midpoint
+        elif symmetry==4:
+            for v1, v2, v3, v4 in itertools.combinations(vectors, 4):
+                # Calculate distances between the vectors
+                d1, d2, d3, d4 = utils.distance(v1, v2), utils.distance(v2, v3), utils.distance(v3, v4), utils.distance(v4, v1)
+
+                # Check if the distances are close to each other within the defined tolerance
+                if max(d1, d2, d3, d4) - min(d1, d2, d3, d4) <= tolerance * min_distance:
+                    # Calculate the midpoint of the facet
+                    midpoint = [(v1[0] + v2[0] + v3[0] + v4[0]) / 4, (v1[1] + v2[1] + v3[1] + v4[1]) / 4, (v1[2] + v2[2] + v3[2] + v4[2]) / 4]
+                    return midpoint
+    
+    def displace_cages(self, arene_smile,diamine_smile,sym,metal_atom,symmetry=3):
+        dist = CageOperations.cage_size(self, arene_smile)
+        vecs_vertex = CageOperations.cage_vertex_vec(self, diamine_smile) #this has all the vectors of the arene to centroid
+        vec_vertex=vecs_vertex[0]
+        if sym=="4_6":
+            vec_w = -CageOperations.calculate_cage_vector(self, arene_smile)
+            vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
+        elif sym=="oct":
+            vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex)
+            vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
+        elif sym=="trunc_oct":
+            vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex,symmetry=4)
+            vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
+
+        
+        if sym=="4_6":
+            guest_bb_wa = stk.BuildingBlock.init_from_molecule(self)
+            guest_bb_aa = stk.BuildingBlock.init_from_molecule(self)
+            origin = guest_bb_wa.get_centroid()
+            guest_bb_ww = guest_bb_wa.with_rotation_between_vectors(vec_w, vec_w*-1, origin)
+            guest_bb_wv = guest_bb_wa.with_rotation_between_vectors(vec_vertex, vec_w, origin)
+        elif sym=="oct":
+            guest_bb_ww = stk.BuildingBlock.init_from_molecule(self)
+            origin = guest_bb_ww.get_centroid()
+            guest_bb_wa = guest_bb_ww.with_rotation_between_vectors(vec_w, vec_a, origin)
+            guest_bb_aa = guest_bb_ww
+            guest_bb_wv = guest_bb_wa.with_rotation_between_vectors(vec_vertex, vec_w, origin)
+        elif sym=="trunc_oct":
+            guest_bb_ww = stk.BuildingBlock.init_from_molecule(self)
+            origin = guest_bb_ww.get_centroid()
+            guest_bb_wa = guest_bb_ww.with_rotation_between_vectors(vec_w, vec_a, origin)
+            guest_bb_aa = guest_bb_ww
+            guest_bb_wv = guest_bb_ww.with_rotation_between_vectors(vec_vertex, vec_w, origin)
+        origin = guest_bb_wa.get_centroid()
+        rotated_vectors_w = utils.generate_rotated_vectors(vec_w, 4, 30)
+        rotated_vectors_a = utils.generate_rotated_vectors(vec_a, 4, 30)
+
+
+        list_wa, list_ww, list_aa, list_wv = CageOperations.generate_new_cages(self, guest_bb_aa, guest_bb_ww, guest_bb_wa, guest_bb_wv, vec_w, vec_a, rotated_vectors_w, rotated_vectors_a, dist)
+        #list_wv = CageOperations.generate_ww_cages(guest_bb_wa, guest_bb_wv, vec, vec_perpendicular, rotated_vectors, dist)
+
+        rdkit_mol = list_wa[-1][-1].to_rdkit_mol()
+        fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile, metal_atom=metal_atom)
+        return list_wa, list_ww, list_aa, list_wv, fixed_atom_set

@@ -845,20 +845,49 @@ class GulpDimerOptimizer:
             if filename.endswith(".mol"):
                 output_dir=f"{dir}/{filename[:-4]}"
                 os.makedirs(output_dir, exist_ok=True)
-                # The path to your .mol file
-                mol_file_path = os.path.join(dir, filename)
-                cage=stk.BuildingBlock.init_from_file(mol_file_path)
+                output_file = os.path.join(output_dir, "gulp_opt.ginout")
 
-                gulp_opt = stko.GulpUFFOptimizer(
-                    gulp_path=self.gulp_path,
-                    output_dir=output_dir,  # Change to correct path for Tmp files
-                    metal_FF={45: 'Rh6+3'},
-                    conjugate_gradient=True,
-                    maxcyc=500,
-                )    
-                gulp_opt.assign_FF(cage)
-                structure = gulp_opt.optimize(mol=cage)
-                structure.write(f'{output_dir}_opt.mol')
+        # Check if the file exists
+                if os.path.exists(output_file):
+                    with open(output_file, 'r') as file:
+                        lines = file.readlines()
+                        # Check if the last non-empty line starts with the specified pattern
+                        for last_line in lines[::-1]:
+                            if last_line.strip():  # This ensures we skip any empty lines at the end of the file
+                                break
+                            
+                        if last_line.startswith("  Job Finished at "):
+                            print(f"Skipping dimer {filename[:-4]} as it is already done")
+                        else: # Exit the function if the job is already done
+
+                            # The path to your .mol file
+                            mol_file_path = os.path.join(dir, filename)
+                            cage=stk.BuildingBlock.init_from_file(mol_file_path)
+
+                            gulp_opt = stko.GulpUFFOptimizer(
+                                gulp_path=self.gulp_path,
+                                output_dir=output_dir,  # Change to correct path for Tmp files
+                                metal_FF={45: 'Rh6+3'},
+                                conjugate_gradient=True,
+                                maxcyc=500,
+                            )    
+                            gulp_opt.assign_FF(cage)
+                            structure = gulp_opt.optimize(mol=cage)
+                            structure.write(f'{output_dir}_opt.mol')
+                else:
+                    mol_file_path = os.path.join(dir, filename)
+                    cage=stk.BuildingBlock.init_from_file(mol_file_path)
+
+                    gulp_opt = stko.GulpUFFOptimizer(
+                        gulp_path=self.gulp_path,
+                        output_dir=output_dir,  # Change to correct path for Tmp files
+                        metal_FF={45: 'Rh6+3'},
+                        conjugate_gradient=True,
+                        maxcyc=500,
+                    )    
+                    gulp_opt.assign_FF(cage)
+                    structure = gulp_opt.optimize(mol=cage)
+                    structure.write(f'{output_dir}_opt.mol')
     # Handle 'wv' condition separately
         
         #rdkit_mol = list_wa[-1][-1].to_rdkit_mol()
@@ -1160,20 +1189,22 @@ class XTBDimerOptimizer:
             molecule=molecule,
             path=f'Cage{num}_xtb/Cage{num}_xtb_{mode}/Cage_{num}_{dis}_{rot}_{mode}.mol'
     )
-    def add_line_to_job_script(self,filename, input_string,cx1):
+    def add_line_to_job_script(self,filename, input_string):
         # Constructing the line to be added
 
-        line_to_add = f"xtb --input xtb.inp --namespace {input_string} {input_string}.mol --opt >{input_string}.out\n"
+        line_to_add = f"xtb --input xtb.inp --parallel 64 --namespace {input_string} {input_string}.mol --iterations 1000 --opt crude >{input_string}.out\n"
 
         # Opening the file in append mode to add the line
         with open(filename, 'a') as file:
             file.write(line_to_add)
 
-    def make_files(self,Cagenum, molecule_type, molecule_list,fixed_atom_set,filename="constrain.sh",cx1=False):
-        
+    def make_files(self,Cagenum, molecule_type, molecule_list,fixed_atom_set,filename,cx1=False):
+        print(filename)
         if (cx1==False):
             with open(filename, 'a') as file:
                 file.write(f'cd Cage{Cagenum}_xtb_{molecule_type} \n')
+
+
         for molecule_group in molecule_list:
             for molecule in molecule_group:
                 mol = molecule.to_rdkit_mol()
@@ -1181,14 +1212,12 @@ class XTBDimerOptimizer:
                 if overlaps:
                     print(f"skip Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
                     continue
-
-                #utils.write_molecule_to_mol_file(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
-                filename_xtb=f'Cage{Cagenum}/Cage{Cagenum}_{molecule_type}/{filename}'
-                self.add_line_to_job_script(filename_xtb, f"Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}",cx1)
+                self.add_line_to_job_script(filename, f"Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
                 self.write_molecule_to_mol_file_xtb(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
                 #cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_ww/Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mol')
-        with open(filename, 'a') as file:
-            file.write('cd .. \n')
+        if (cx1==False):
+            with open(filename, 'a') as file:
+                file.write('cd .. \n')
 
 # %%
 
@@ -1214,7 +1243,7 @@ class XTBDimerOptimizer:
         return new_content
 
 
-    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",cx1=False):
+    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",cx1=False,metal_atom=None,symmetry=3):
         """
         The main function for running a calculation
         Args: 
@@ -1232,64 +1261,40 @@ class XTBDimerOptimizer:
         #os.makedirs(foldername_gulp, exist_ok=True)
         xtb_folder_paths = utils.create_folders_and_return_paths(foldername_xtb, suffixes)
 
-        dist = CageOperations.cage_size(cage, arene_smile)
-        vecs_vertex = CageOperations.cage_vertex_vec(cage, diamine_smile) #this has all the vectors of the arene to centroid
-        vec_vertex=vecs_vertex[0]
-        if sym=="4_6":
-            vec_w = -CageOperations.calculate_cage_vector(cage, arene_smile)
-            vec_a = CageOperations.calculate_cage_vector(cage, arene_smile)
-        elif sym=="oct":
-            vec_w = CageOperations.find_midpoint_of_facet(cage,vecs_vertex)
-            vec_a = CageOperations.calculate_cage_vector(cage, arene_smile)
+        list_wa, list_ww, list_aa, list_wv, fixed_atom_set=CageOperations.displace_cages(cage, arene_smile, diamine_smile, sym,metal_atom,symmetry)
 
-        
-        if sym=="4_6":
-            guest_bb_wa = stk.BuildingBlock.init_from_molecule(cage)
-            guest_bb_aa = stk.BuildingBlock.init_from_molecule(cage)
-            origin = guest_bb_wa.get_centroid()
-            guest_bb_ww = guest_bb_wa.with_rotation_between_vectors(vec_w, vec_w*-1, origin)
-            guest_bb_wv = guest_bb_wa.with_rotation_between_vectors(vec_vertex, vec_w, origin)
-        elif sym=="oct":
-            guest_bb_ww = stk.BuildingBlock.init_from_molecule(cage)
-            origin = guest_bb_ww.get_centroid()
-            guest_bb_wa = guest_bb_ww.with_rotation_between_vectors(vec_w, vec_a, origin)
-            guest_bb_aa = guest_bb_ww
-            guest_bb_wv = guest_bb_wa.with_rotation_between_vectors(vec_vertex, vec_w, origin)
-        origin = guest_bb_wa.get_centroid()
-        rotated_vectors_w = utils.generate_rotated_vectors(vec_w, 4, 30)
-        rotated_vectors_a = utils.generate_rotated_vectors(vec_a, 4, 30)
-
-
-        list_wa, list_ww, list_aa, list_wv = CageOperations.generate_new_cages(cage, guest_bb_aa, guest_bb_ww, guest_bb_wa, guest_bb_wv, vec_w, vec_a, rotated_vectors_w, rotated_vectors_a, dist)
-        #list_wv = CageOperations.generate_ww_cages(guest_bb_wa, guest_bb_wv, vec, vec_perpendicular, rotated_vectors, dist)
-
-        rdkit_mol = list_wa[-1][-1].to_rdkit_mol()
-        fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile)
         new_content = self.generate_constraint_file(fixed_atom_set)
+        print(new_content,fixed_atom_set)
         self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[0], "xtb.inp"))
         self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[1], "xtb.inp"))
         self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[2], "xtb.inp"))
         self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[3], "xtb.inp"))
         if (cx1==True):
             self.write_job_script(foldername+"_ww",xtb_folder_paths[0],"constrain")
+            full_path = f"{xtb_folder_paths[0]}/constrain.sh"
+            self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,full_path,cx1)
             self.write_job_script(foldername+"_wa",xtb_folder_paths[1],"constrain")
+            full_path = f"{xtb_folder_paths[1]}/constrain.sh"
+            self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,full_path,cx1)
             self.write_job_script(foldername+"_aa",xtb_folder_paths[2],"constrain")
+            full_path = f"{xtb_folder_paths[2]}/constrain.sh"
+            self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,full_path,cx1)
             self.write_job_script(foldername+"_wv",xtb_folder_paths[3],"constrain")
-            filename="constrain.sh"
+            full_path = f"{xtb_folder_paths[3]}/constrain.sh"
+            self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,full_path,cx1)
         else:
             filename=os.path.join(f'Cage{Cagenum}_xtb/', "constrain.sh")
             open(filename, 'w+')
-
-        self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,filename)
-        self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,filename)
-        self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,filename)
-        self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,filename)
+            self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,filename,cx1)
+            self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,filename,cx1)
+            self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,filename,cx1)
+            self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,filename,cx1)
 
 
     def write_job_script(self,job_name, filepath, filename):
         script_content = f"""#!/bin/bash --login
 #PBS -N {job_name}
-#PBS -l select=1:ncpus=124:mem=62gb:avx2=true
+#PBS -l select=1:ncpus=128:mem=128gb:avx2=true
 #PBS -l walltime=8:00:00
 
 # Load modules for any applications
@@ -1311,6 +1316,9 @@ cd $PBS_O_WORKDIR
 #module load cuda/10.1
 #module load mpi
 cd $PBS_O_WORKDIR
+export OMP_NUM_THREADS=64
+export OMP_STACKSIZE=2G
+export MKL_NUM_THREADS=64
 module load anaconda3/personal
 source /rds/general/user/ewolpert/home/anaconda3/etc/profile.d/conda.sh
 conda activate dimer_calculations
