@@ -26,7 +26,7 @@ With that so far you should be able to create all the scripts necessary to run t
 
 # Running scripts
 
-You will see when running the script it creates two folders: Cage{name} and Cage{name}_XXX where XXX differs depending on which optimiser you are using. The first folder contains all the .mol files of the dimers you create into four folders based on the type of packing. You can have a look at these to make sure its doing what you expect, if not it might be an issue with what smiles string you've used (for example if the backbone of the trialdehyde also occurs in the vertex/diamine). The other folder is where your dimer calculations will be run.
+You will see when running the script it creates two folders: Cage{name} and Cage{name}_XXX where XXX differs depending on which optimiser you are using. The first folder contains all the .mol files of the dimers you create into four folders based on the type of packing. They're named as "Cage_{name}_{displacement perpendicular to high sym axis}_{rotation}_{displacement along high sym axis}_aa.mol" where the numbers in it dont correspond to distance/rotation angle. You can have a look at these to make sure its doing what you expect, if not it might be an issue with what smiles string you've used (for example if the backbone of the trialdehyde also occurs in the vertex/diamine). The other folder is where your dimer calculations will be run.
 
 For GULP, the dimer calculations are actually performed as you run the script. 
 
