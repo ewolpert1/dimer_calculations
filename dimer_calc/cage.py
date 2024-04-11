@@ -123,11 +123,13 @@ class CageOperations:
         perpendicular_vector_a = utils.calculate_perpendicular_vector(direction_vector_a)
         list_wa, list_ww, list_aa, list_wv = [], [], [], []
         for i in np.arange(0, 7, 1):
-            list_wa_run,list_ww_run,list_aa_run, list_wv_run  = [],[],[], []
+            
             displaced_centers_w =utils.find_integer_points(direction_vector_w, displacement_distance*2-2+i, int(displacement_distance) + 1)
             displaced_centers_a =utils.find_integer_points(direction_vector_a, displacement_distance*2-2+i, int(displacement_distance) + 1)
 
+            list_wa_cent,list_ww_cent,list_aa_cent, list_wv_cent  = [],[],[], []
             for center in range(len(displaced_centers_w)):
+                list_wa_rot,list_ww_rot,list_aa_rot, list_wv_rot  = [],[],[], []
                 for rotation_vector in range(len(rotated_vectors_w)):
                     guest_aa = utils.create_rotated_guest(guest_bb_aa, perpendicular_vector_a, rotated_vectors_a[rotation_vector], displaced_centers_a[center])
                     guest_wa = utils.create_rotated_guest(guest_bb_wa, perpendicular_vector_w, rotated_vectors_w[rotation_vector], displaced_centers_w[center])
@@ -147,14 +149,18 @@ class CageOperations:
                         topology_graph=stk.host_guest.Complex(host=self, guests=guest_wv)
                     )
       
-                    list_wa_run.append(complex_wa)
-                    list_ww_run.append(complex_ww)
-                    list_aa_run.append(complex_aa)
-                    list_wv_run.append(complex_wv)
-            list_wa.append(list_wa_run)
-            list_ww.append(list_ww_run)
-            list_aa.append(list_aa_run)
-            list_wv.append(list_wv_run)
+                    list_wa_rot.append(complex_wa)
+                    list_ww_rot.append(complex_ww)
+                    list_aa_rot.append(complex_aa)
+                    list_wv_rot.append(complex_wv)
+                list_wa_cent.append(list_wa_rot)
+                list_ww_cent.append(list_ww_rot)
+                list_aa_cent.append(list_aa_rot)
+                list_wv_cent.append(list_wv_rot)
+            list_wa.append(list_wa_cent)
+            list_ww.append(list_ww_cent)
+            list_aa.append(list_aa_cent)
+            list_wv.append(list_wv_cent)
         return list_wa, list_ww, list_aa, list_wv
     
     def generate_ww_cages(cage,guest_bb_ww, vec, vec_perpendicular, rotated_vectors, dist):  
@@ -238,13 +244,13 @@ class CageOperations:
             vec[i]=vec[i]/(np.sqrt(np.dot(vec[i],vec[i])))
         return vec
 
-    def find_midpoint_of_facet(self,vectors, tolerance=0.1,symmetry=3):
+    def find_midpoint_of_facet(self,vectors,sym, tolerance=0.1):
         # Calculate all distances and find the minimum non-zero distance
         all_distances = [utils.distance(v1, v2) for v1, v2 in itertools.combinations(vectors, 2)]
         min_distance = min(filter(lambda d: d > 0, all_distances))
 
         # Iterate through all combinations of three vectors
-        if symmetry==3:
+        if sym=="oct":
             for v1, v2, v3 in itertools.combinations(vectors, 3):
                 # Calculate distances between the vectors
                 d1, d2, d3 = utils.distance(v1, v2), utils.distance(v2, v3), utils.distance(v3, v1)
@@ -254,7 +260,7 @@ class CageOperations:
                     # Calculate the midpoint of the facet
                     midpoint = [(v1[0] + v2[0] + v3[0]) / 3, (v1[1] + v2[1] + v3[1]) / 3, (v1[2] + v2[2] + v3[2]) / 3]
                     return midpoint
-        elif symmetry==4:
+        elif sym=="trunc_oct":
             for v1, v2, v3, v4 in itertools.combinations(vectors, 4):
                 # Calculate distances between the vectors
                 d1, d2, d3, d4 = utils.distance(v1, v2), utils.distance(v2, v3), utils.distance(v3, v4), utils.distance(v4, v1)
@@ -265,7 +271,7 @@ class CageOperations:
                     midpoint = [(v1[0] + v2[0] + v3[0] + v4[0]) / 4, (v1[1] + v2[1] + v3[1] + v4[1]) / 4, (v1[2] + v2[2] + v3[2] + v4[2]) / 4]
                     return midpoint
     
-    def displace_cages(self, arene_smile,diamine_smile,sym,metal_atom,symmetry=3):
+    def displace_cages(self, arene_smile,diamine_smile,sym,metal_atom):
         dist = CageOperations.cage_size(self, arene_smile)
         vecs_vertex = CageOperations.cage_vertex_vec(self, diamine_smile) #this has all the vectors of the arene to centroid
         vec_vertex=vecs_vertex[0]
@@ -273,10 +279,10 @@ class CageOperations:
             vec_w = -CageOperations.calculate_cage_vector(self, arene_smile)
             vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
         elif sym=="oct":
-            vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex)
+            vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex,sym)
             vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
         elif sym=="trunc_oct":
-            vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex,symmetry=4)
+            vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex,sym)
             vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
 
         
@@ -306,6 +312,6 @@ class CageOperations:
         list_wa, list_ww, list_aa, list_wv = CageOperations.generate_new_cages(self, guest_bb_aa, guest_bb_ww, guest_bb_wa, guest_bb_wv, vec_w, vec_a, rotated_vectors_w, rotated_vectors_a, dist)
         #list_wv = CageOperations.generate_ww_cages(guest_bb_wa, guest_bb_wv, vec, vec_perpendicular, rotated_vectors, dist)
 
-        rdkit_mol = list_wa[-1][-1].to_rdkit_mol()
+        rdkit_mol = list_wa[-1][-1][-1].to_rdkit_mol()
         fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile, metal_atom=metal_atom)
         return list_wa, list_ww, list_aa, list_wv, fixed_atom_set

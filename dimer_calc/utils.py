@@ -339,7 +339,7 @@ def generate_rotated_vectors(base_vector, num_steps, angle_interval):
     angles = np.arange(num_steps) * angle_interval
     return np.array([rotate_vector(perpendicular_vector, axis, angle) for angle in angles])
 
-def write_molecule_to_mol_file(molecule, num, mode, dis, rot):
+def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot,dis):
     """
     Save a given molecule to a .mol file with a specific naming convention.
 
@@ -354,7 +354,7 @@ def write_molecule_to_mol_file(molecule, num, mode, dis, rot):
     """
     stk.MolWriter().write(
         molecule=molecule,
-        path=f'Cage{num}/Cage{num}_{mode}/Cage_{num}_{dis}_{rot}_{mode}.mol'
+        path=f'Cage{num}/Cage{num}_{mode}/Cage_{num}_{dis_cent}_{rot}_{dis}_{mode}.mol'
     )
 
 # %%

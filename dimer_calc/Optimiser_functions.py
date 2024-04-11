@@ -764,7 +764,7 @@ class GulpDimerOptimizer:
                 cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_{molecule_type}/Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mol')
                 self.optimise_dimer(cage1,Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group),fixed_atom_set)
 # %%
-    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",ww=True,wa=True,aa=True,wv=True,metal_atom=None):
+    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",metal_atom=None,constrain=None,parallel=1,opt=False):
         """
         The main function for running a calculation
         Args: 
@@ -777,55 +777,22 @@ class GulpDimerOptimizer:
         foldername = f"Cage{Cagenum}"
         os.makedirs(foldername, exist_ok=True)
         
+        ww=True
+        wa=True
+        aa=True
+        wv=True
+        
         conditions = {'ww': ww, 'wa': wa, 'aa': aa, 'wv': wv}
+        arene_smile=utils.remove_aldehyde(arene_smile)
+        diamine_smile=utils.remove_aldehyde(diamine_smile)
         
         for suffix in conditions:
             utils.create_folders_and_return_paths(foldername, [f"_{suffix}"])
 
-        #foldername_gulp = foldername + "_gulp"
-        #os.makedirs(foldername_gulp, exist_ok=True)
-        #gulp_folder_paths = utils.create_folders_and_return_paths(foldername_gulp, suffixes)
-
-        
-        dist = CageOperations.cage_size(cage, arene_smile)
-        vecs_vertex = CageOperations.cage_vertex_vec(cage, diamine_smile) #this has all the vectors of the arene to centroid
-        vec_vertex=vecs_vertex[0]
-        if sym=="4_6":
-            vec_w = -CageOperations.calculate_cage_vector(cage, arene_smile)
-            vec_a = CageOperations.calculate_cage_vector(cage, arene_smile)
-        elif sym=="oct":
-            vec_w = CageOperations.find_midpoint_of_facet(cage,vecs_vertex)
-            print(vec_w)
-            vec_a = CageOperations.calculate_cage_vector(cage, arene_smile)
-
-        
-        if sym=="4_6":
-            guest_bb_wa = stk.BuildingBlock.init_from_molecule(cage)
-            guest_bb_aa = stk.BuildingBlock.init_from_molecule(cage)
-            origin = guest_bb_wa.get_centroid()
-            guest_bb_ww = guest_bb_wa.with_rotation_between_vectors(vec_w, vec_w*-1, origin)
-            guest_bb_wv = guest_bb_wa.with_rotation_between_vectors(vec_vertex, vec_w, origin)
-        elif sym=="oct":
-            guest_bb_ww = stk.BuildingBlock.init_from_molecule(cage)
-            origin = guest_bb_ww.get_centroid()
-            guest_bb_wa = guest_bb_ww.with_rotation_between_vectors(vec_w, vec_a, origin)
-            guest_bb_aa = guest_bb_ww
-            guest_bb_wv = guest_bb_ww.with_rotation_between_vectors(vec_vertex, vec_w, origin)
-        
-        rotated_vectors_w = utils.generate_rotated_vectors(vec_w, 4, 30)
-        rotated_vectors_a = utils.generate_rotated_vectors(vec_a, 4, 30)
-
-        list_wa, list_ww, list_aa, list_wv = CageOperations.generate_new_cages(cage, guest_bb_aa, guest_bb_ww, guest_bb_wa, guest_bb_wv, vec_w, vec_a, rotated_vectors_w, rotated_vectors_a, dist)
+        list_wa, list_ww, list_aa, list_wv, fixed_atom_set=CageOperations.displace_cages(cage, arene_smile, diamine_smile, sym,metal_atom)
         cage_lists = {'ww': list_ww, 'wa': list_wa, 'aa': list_aa, 'wv': list_wv}
 
-        #for suffix, condition in conditions.items():
-        #    if wv:
-        #        if list_wv:
-        #            rdkit_mol = list_wv[-1][-1].to_rdkit_mol()
-        #            fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile, metal_atom=metal_atom)
-        #            self.run_calculations(Cagenum, 'wv', list_wv, fixed_atom_set)
-        #    elif condition:
-                # Get the specific cage list for the current suffix
+
         for suffix in cage_lists:
             specific_cage_list = cage_lists[suffix]
 
@@ -904,22 +871,48 @@ class OPLSDimerOptimizer:
     def __init__(self, SCHRODINGER_PATH):
         self.SCHRODINGER_PATH = SCHRODINGER_PATH
 
+
+
+    def make_files(self,Cagenum, molecule_type, molecule_list,fixed_atom_set,filename,cx1,constrain,parallel,opt):
+        print(filename)
+        if (cx1==False):
+            with open(filename, 'a') as file:
+                file.write(f'cd Cage{Cagenum}_xtb_{molecule_type} \n')
+
+
+        for molecule_cent in molecule_list:
+            for molecule_rot in molecule_cent:
+                for molecule in molecule_rot:
+                    mol = molecule.to_rdkit_mol()
+                    overlaps = utils.check_overlaps(mol)
+                    if overlaps:
+                        print(f"skip Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}")
+                        continue
+                    self.add_line_to_job_script(filename, f"Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}",constrain,parallel,opt)
+                    #self.write_molecule_to_mol_file_xtb(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
+                    self.write_molecule_to_mol_file_xtb(molecule, Cagenum, molecule_type, molecule_cent.index(molecule_rot),molecule_rot.index(molecule),molecule_list.index(molecule_cent))
+                    #cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_ww/Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mol')
+        if (cx1==False):
+            with open(filename, 'a') as file:
+                file.write('cd .. \n')
+
     def write_structcat_files(self,Cagenum,folder_path, foldername, molecule_type, molecule_list):
         with open(os.path.join(folder_path, foldername + ".txt"), "w") as file:
             file.write(f"export SCHRODINGER={self.SCHRODINGER_PATH}\n")
             file.write(" $SCHRODINGER/utilities/structcat")
-            for molecule_group in molecule_list:
-                for molecule in molecule_group:
-                    mol = molecule.to_rdkit_mol()
-                    overlaps = utils.check_overlaps(mol)
-                    if overlaps:
-                        print(f"skip Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
-                        continue
-                    utils.write_molecule_to_mol_file(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
-                    file.write(f" -imae Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mae")
+            for molecule_cent in molecule_list:
+                for molecule_rot in molecule_cent:
+                    for molecule in molecule_rot:
+                        mol = molecule.to_rdkit_mol()
+                        overlaps = utils.check_overlaps(mol)
+                        if overlaps:
+                            print(f"skip Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}")
+                            continue
+                        utils.write_molecule_to_mol_file(molecule, Cagenum, molecule_type, molecule_cent.index(molecule_rot),molecule_rot.index(molecule),molecule_list.index(molecule_cent))
+                        file.write(f" -imae Cage_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}.mae")
             file.write(f" -omae {foldername}_{molecule_type}_merged.mae")
     # %%
-    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6"):
+    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",metal_atom=None,constrain=None,parallel=1,opt=False):
         """
         The main function for running a calculation
         Args: 
@@ -928,7 +921,8 @@ class OPLSDimerOptimizer:
         - arene_smile: smiles string of 
 
         """
-        #Create a folder named Cagenum
+        arene_smile=utils.remove_aldehyde(arene_smile)
+        diamine_smile=utils.remove_aldehyde(diamine_smile)
         foldername = f"Cage{Cagenum}"
         os.makedirs(foldername, exist_ok=True)
         suffixes = ["_ww", "_wa", "_aa", "_wv"]
@@ -938,26 +932,8 @@ class OPLSDimerOptimizer:
         mae_folder_paths = utils.create_folders_and_return_paths(foldername_mae, suffixes)
 
 
-        dist = CageOperations.cage_size(cage, arene_smile)
-        vecs_vertex = CageOperations.cage_vertex_vec(cage, diamine_smile) #this has all the vectors of the arene to centroid
-        vec_vertex=vecs_vertex[0]
-        if sym=="4_6":
-            vec = CageOperations.calculate_cage_vector(cage, arene_smile)
-        elif sym=="oct":
-            vec = CageOperations.find_midpoint_of_facet(cage,vecs_vertex)
-        guest_bb_wa = stk.BuildingBlock.init_from_molecule(cage)
-        origin = guest_bb_wa.get_centroid()
-        guest_bb_ww = guest_bb_wa.with_rotation_between_vectors(vec, vec*-1, origin)
-        guest_bb_aa = guest_bb_ww
-        guest_bb_wv = guest_bb_wa.with_rotation_between_vectors(vec_vertex, vec, origin)
-        vec_perpendicular = utils.calculate_perpendicular_vector(vec)
-        rotated_vectors = utils.generate_rotated_vectors(vec, 4, 30)
-        list_wa, list_ww, list_aa = CageOperations.generate_new_cages(cage, guest_bb_aa, guest_bb_ww, guest_bb_wa, vec, vec_perpendicular, rotated_vectors, dist)
-        list_wv = CageOperations.generate_ww_cages(guest_bb_wa, guest_bb_wv, vec, vec_perpendicular, rotated_vectors, dist)
+        list_wa, list_ww, list_aa, list_wv, fixed_atom_set=CageOperations.displace_cages(cage, arene_smile, diamine_smile, sym,metal_atom)
 
-
-        rdkit_mol = list_wa[-1][-1].to_rdkit_mol()
-        fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile)
         new_content = utils.generate_com_content(fixed_atom_set)
         
         self.write_com_file(new_content, os.path.join(mae_folder_paths[0], foldername+".com"), foldername+"_ww_merged")
@@ -1172,7 +1148,7 @@ class XTBDimerOptimizer:
 
 
 # %%
-    def write_molecule_to_mol_file_xtb(self,molecule, num, mode, dis, rot):
+    def write_molecule_to_mol_file_xtb(self,molecule, num, mode, dis_cent, rot,dis):
         """
         Save a given molecule to a .mol file with a specific naming convention.
 
@@ -1187,34 +1163,42 @@ class XTBDimerOptimizer:
         """
         stk.MolWriter().write(
             molecule=molecule,
-            path=f'Cage{num}_xtb/Cage{num}_xtb_{mode}/Cage_{num}_{dis}_{rot}_{mode}.mol'
+            path=f'Cage{num}_xtb/Cage{num}_xtb_{mode}/Cage_{num}_{dis_cent}_{rot}_{dis}_{mode}.mol'
     )
-    def add_line_to_job_script(self,filename, input_string):
+        
+    def add_line_to_job_script(self,filename, input_string,constrain,parallel,opt):
         # Constructing the line to be added
-
-        line_to_add = f"xtb --input xtb.inp --parallel 64 --namespace {input_string} {input_string}.mol --iterations 1000 --opt crude >{input_string}.out\n"
+        line_to_add = f"xtb "
+        if constrain:
+            line_to_add += "--input xtb.inp "
+        line_to_add += f"--parallel {parallel} --namespace {input_string} {input_string}.mol --iterations 1000 "
+        if opt:
+            line_to_add += "--opt crude "
+        line_to_add += f">{input_string}.out\n"
 
         # Opening the file in append mode to add the line
         with open(filename, 'a') as file:
             file.write(line_to_add)
 
-    def make_files(self,Cagenum, molecule_type, molecule_list,fixed_atom_set,filename,cx1=False):
+    def make_files(self,Cagenum, molecule_type, molecule_list,fixed_atom_set,filename,cx1,constrain,parallel,opt):
         print(filename)
         if (cx1==False):
             with open(filename, 'a') as file:
                 file.write(f'cd Cage{Cagenum}_xtb_{molecule_type} \n')
 
 
-        for molecule_group in molecule_list:
-            for molecule in molecule_group:
-                mol = molecule.to_rdkit_mol()
-                overlaps = utils.check_overlaps(mol)
-                if overlaps:
-                    print(f"skip Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
-                    continue
-                self.add_line_to_job_script(filename, f"Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
-                self.write_molecule_to_mol_file_xtb(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
-                #cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_ww/Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mol')
+        for molecule_cent in molecule_list:
+            for molecule_rot in molecule_cent:
+                for molecule in molecule_rot:
+                    mol = molecule.to_rdkit_mol()
+                    overlaps = utils.check_overlaps(mol)
+                    if overlaps:
+                        print(f"skip Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}")
+                        continue
+                    self.add_line_to_job_script(filename, f"Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}",constrain,parallel,opt)
+                    #self.write_molecule_to_mol_file_xtb(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
+                    self.write_molecule_to_mol_file_xtb(molecule, Cagenum, molecule_type, molecule_cent.index(molecule_rot),molecule_rot.index(molecule),molecule_list.index(molecule_cent))
+                    #cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_ww/Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mol')
         if (cx1==False):
             with open(filename, 'a') as file:
                 file.write('cd .. \n')
@@ -1243,7 +1227,7 @@ class XTBDimerOptimizer:
         return new_content
 
 
-    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",cx1=False,metal_atom=None,symmetry=3):
+    def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",cx1=False,metal_atom=None,constrain=None,parallel=1,opt=False):
         """
         The main function for running a calculation
         Args: 
@@ -1252,6 +1236,9 @@ class XTBDimerOptimizer:
         - arene_smile: smiles string of 
 
         """
+
+        arene_smile=utils.remove_aldehyde(arene_smile)
+        diamine_smile=utils.remove_aldehyde(diamine_smile)
         #Create a folder named Cagenum
         foldername = f"Cage{Cagenum}"
         os.makedirs(foldername, exist_ok=True)
@@ -1261,40 +1248,39 @@ class XTBDimerOptimizer:
         #os.makedirs(foldername_gulp, exist_ok=True)
         xtb_folder_paths = utils.create_folders_and_return_paths(foldername_xtb, suffixes)
 
-        list_wa, list_ww, list_aa, list_wv, fixed_atom_set=CageOperations.displace_cages(cage, arene_smile, diamine_smile, sym,metal_atom,symmetry)
-
-        new_content = self.generate_constraint_file(fixed_atom_set)
-        print(new_content,fixed_atom_set)
-        self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[0], "xtb.inp"))
-        self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[1], "xtb.inp"))
-        self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[2], "xtb.inp"))
-        self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[3], "xtb.inp"))
+        list_wa, list_ww, list_aa, list_wv, fixed_atom_set=CageOperations.displace_cages(cage, arene_smile, diamine_smile, sym,metal_atom)
+        if constrain:
+            new_content = self.generate_constraint_file(fixed_atom_set)
+            self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[0], "xtb.inp"))
+            self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[1], "xtb.inp"))
+            self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[2], "xtb.inp"))
+            self.write_constraint_file(new_content, os.path.join(xtb_folder_paths[3], "xtb.inp"))
         if (cx1==True):
-            self.write_job_script(foldername+"_ww",xtb_folder_paths[0],"constrain")
+            self.write_job_script(foldername+"_ww",xtb_folder_paths[0],"constrain",parallel)
             full_path = f"{xtb_folder_paths[0]}/constrain.sh"
-            self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,full_path,cx1)
-            self.write_job_script(foldername+"_wa",xtb_folder_paths[1],"constrain")
+            self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,full_path,cx1,constrain,parallel,opt)
+            self.write_job_script(foldername+"_wa",xtb_folder_paths[1],"constrain",parallel)
             full_path = f"{xtb_folder_paths[1]}/constrain.sh"
-            self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,full_path,cx1)
-            self.write_job_script(foldername+"_aa",xtb_folder_paths[2],"constrain")
+            self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,full_path,cx1,constrain,parallel,opt)
+            self.write_job_script(foldername+"_aa",xtb_folder_paths[2],"constrain",parallel)
             full_path = f"{xtb_folder_paths[2]}/constrain.sh"
-            self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,full_path,cx1)
-            self.write_job_script(foldername+"_wv",xtb_folder_paths[3],"constrain")
+            self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,full_path,cx1,constrain,parallel,opt)
+            self.write_job_script(foldername+"_wv",xtb_folder_paths[3],"constrain",parallel)
             full_path = f"{xtb_folder_paths[3]}/constrain.sh"
-            self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,full_path,cx1)
+            self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,full_path,cx1,constrain,parallel,opt)
         else:
             filename=os.path.join(f'Cage{Cagenum}_xtb/', "constrain.sh")
             open(filename, 'w+')
-            self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,filename,cx1)
-            self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,filename,cx1)
-            self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,filename,cx1)
-            self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,filename,cx1)
+            self.make_files(Cagenum,'ww', list_ww,fixed_atom_set,filename,cx1,constrain,parallel,opt)
+            self.make_files(Cagenum,'wa', list_wa,fixed_atom_set,filename,cx1,constrain,parallel,opt)
+            self.make_files(Cagenum,'aa', list_aa,fixed_atom_set,filename,cx1,constrain,parallel,opt)
+            self.make_files(Cagenum,'wv', list_wv,fixed_atom_set,filename,cx1,constrain,parallel,opt)
 
 
-    def write_job_script(self,job_name, filepath, filename):
+    def write_job_script(self,job_name, filepath, filename,parallel):
         script_content = f"""#!/bin/bash --login
 #PBS -N {job_name}
-#PBS -l select=1:ncpus=128:mem=128gb:avx2=true
+#PBS -l select=1:ncpus={parallel*2}:mem={parallel*2}gb:avx2=true
 #PBS -l walltime=8:00:00
 
 # Load modules for any applications
@@ -1316,9 +1302,9 @@ cd $PBS_O_WORKDIR
 #module load cuda/10.1
 #module load mpi
 cd $PBS_O_WORKDIR
-export OMP_NUM_THREADS=64
+export OMP_NUM_THREADS={parallel}
 export OMP_STACKSIZE=2G
-export MKL_NUM_THREADS=64
+export MKL_NUM_THREADS={parallel}
 module load anaconda3/personal
 source /rds/general/user/ewolpert/home/anaconda3/etc/profile.d/conda.sh
 conda activate dimer_calculations
