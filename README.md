@@ -38,6 +38,6 @@ I have also written energy_readers which then read the energy of your outputted 
 
 # HARRY
 
-We will probably need to edit this quite a bit. I think if we make a new function similar to generate_new_cages but based on the shape of your molecule and ignoring the smiles etc it could work quite well. I suggest you make a new branch(?) or whatever its called and then add in some functions that will work on your molecules.
+We will probably need to edit this quite a bit. I think if we make a new function i.e. run_a_molecule instead of run_a_cage and then also a new function similar to generate_new_cages but based on the calculated shape of your molecule instead of smiles it could work quite well. I suggest you make a new branch(?) or whatever its called and then add in some functions that will work on your molecules.
 
 Happy dimer calculating!
