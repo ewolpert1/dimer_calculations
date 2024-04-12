@@ -719,8 +719,9 @@ class GulpDimerOptimizer:
     def __init__(self, gulp_path):
         self.gulp_path = gulp_path
 
-    def optimise_dimer(self,cage, num, mode, dis, rot,fixed_atom_set):
-        output_dir=f"Cage{num}_gulp/Cage{num}_{mode}/Cage_{num}_{dis}_{rot}_{mode}"
+    def optimise_dimer(self,cage, num, mode, dis_cent, rot, dis,fixed_atom_set):
+
+        output_dir=f"Cage{num}_gulp/Cage{num}_{mode}/Cage_{num}_{dis_cent}_{rot}_{dis}_{mode}"
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, "gulp_opt.ginout")
 
@@ -734,7 +735,7 @@ class GulpDimerOptimizer:
                         break
                     
                 if last_line.startswith("  Job Finished at "):
-                    print(f"Skipping dimer Cage_{num}_{dis}_{rot}_{mode} as it is already done")
+                    print(f"Skipping dimer Cage_{num}_{dis_cent}_{rot}_{dis}_{mode} as it is already done")
                     return  # Exit the function if the job is already done
 
         fix_atom = fixed_atom_set
@@ -751,18 +752,19 @@ class GulpDimerOptimizer:
         structure.write(f'{output_dir}_opt.mol')
 # %%
     def run_calculations(self,Cagenum, molecule_type, molecule_list,fixed_atom_set):
-        for molecule_group in molecule_list:
-            for molecule in molecule_group:
-                mol = molecule.to_rdkit_mol()
-                overlaps = utils.check_overlaps(mol)
-                print(f"skip Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
+        for molecule_cent in molecule_list:
+            for molecule_rot in molecule_cent:
+                for molecule in molecule_rot:
+                    mol = molecule.to_rdkit_mol()
+                    overlaps = utils.check_overlaps(mol)
+                    if overlaps:
+                        print(f"skip Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}")
+                        continue
+                    utils.write_molecule_to_mol_file(molecule, Cagenum, molecule_type, molecule_cent.index(molecule_rot),molecule_rot.index(molecule),molecule_list.index(molecule_cent))
+                    cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_{molecule_type}/Cage_{Cagenum}_{molecule_cent.index(molecule_rot)}_{molecule_rot.index(molecule)}_{molecule_list.index(molecule_cent)}_{molecule_type}.mol')
+                    self.optimise_dimer(cage1,Cagenum, molecule_type,molecule_cent.index(molecule_rot),molecule_rot.index(molecule),molecule_list.index(molecule_cent),fixed_atom_set)
 
-                if overlaps:
-                    print(f"skip Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}")
-                    continue
-                utils.write_molecule_to_mol_file(molecule, Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group))
-                cage1=stk.BuildingBlock.init_from_file(f'Cage{Cagenum}/Cage{Cagenum}_{molecule_type}/Cage_{Cagenum}_{molecule_group.index(molecule)}_{molecule_list.index(molecule_group)}_{molecule_type}.mol')
-                self.optimise_dimer(cage1,Cagenum, molecule_type, molecule_group.index(molecule), molecule_list.index(molecule_group),fixed_atom_set)
+
 # %%
     def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",metal_atom=None,constrain=None,parallel=1,opt=False):
         """
@@ -797,7 +799,7 @@ class GulpDimerOptimizer:
             specific_cage_list = cage_lists[suffix]
 
             # Convert the last cage of the specific list to an RDKit molecule
-            rdkit_mol = specific_cage_list[-1][-1].to_rdkit_mol()
+            rdkit_mol = specific_cage_list[-1][-1][-1].to_rdkit_mol()
 
             # Perform operations on the RDKit molecule
             fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile, metal_atom=metal_atom)
