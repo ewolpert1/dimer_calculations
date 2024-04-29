@@ -3,8 +3,7 @@ import os
 from rdkit import Chem
 import numpy as np
 import stk
-from rdkit import Chem
-from rdkit.Chem import rdRGroupDecomposition, AllChem as rdkit, rdMolTransforms
+from rdkit.Chem import rdMolTransforms
 import subprocess
 
 
@@ -94,14 +93,14 @@ def rotate_vector(v, axis, angle):
     cos_angle = np.cos(angle)
     sin_angle = np.sin(angle)
     rotation_matrix = np.array([
-        [cos_angle + axis[0]**2 * (1 - cos_angle), 
-         axis[0] * axis[1] * (1 - cos_angle) - axis[2] * sin_angle, 
+        [cos_angle + axis[0]**2 * (1 - cos_angle),
+         axis[0] * axis[1] * (1 - cos_angle) - axis[2] * sin_angle,
          axis[0] * axis[2] * (1 - cos_angle) + axis[1] * sin_angle],
-        [axis[1] * axis[0] * (1 - cos_angle) + axis[2] * sin_angle, 
-         cos_angle + axis[1]**2 * (1 - cos_angle), 
+        [axis[1] * axis[0] * (1 - cos_angle) + axis[2] * sin_angle,
+         cos_angle + axis[1]**2 * (1 - cos_angle),
          axis[1] * axis[2] * (1 - cos_angle) - axis[0] * sin_angle],
-        [axis[2] * axis[0] * (1 - cos_angle) - axis[1] * sin_angle, 
-         axis[2] * axis[1] * (1 - cos_angle) + axis[0] * sin_angle, 
+        [axis[2] * axis[0] * (1 - cos_angle) - axis[1] * sin_angle,
+         axis[2] * axis[1] * (1 - cos_angle) + axis[0] * sin_angle,
          cos_angle + axis[2]**2 * (1 - cos_angle)]
     ])
     return np.dot(rotation_matrix, v)
@@ -184,7 +183,7 @@ def calculate_perpendicular_vector(vector):
         return np.array([y, -x, 0])
     else:
         raise ValueError("The input vector must be 2D or 3D.")
-    
+
 def create_rotated_guest(guest_building_block, start_vector, end_vector, displacement):
         """
         Create a rotated and displaced guest molecule from a building block.
@@ -203,7 +202,7 @@ def create_rotated_guest(guest_building_block, start_vector, end_vector, displac
             start_vector=start_vector,
             end_vector=end_vector,
             displacement=displacement,
-        ) 
+        )
 def midpoint(conf, idx1, idx2):
     """Calculate the midpoint of two atoms."""
     pos1 = np.array(conf.GetAtomPosition(idx1))
@@ -227,37 +226,6 @@ def closest_point_on_segment(point, segment_start, segment_end):
         return segment_end
     return segment_start + projection_length * seg_unit_vec
 
-def check_overlaps(mol, threshold=0.8):
-    """
-    Check for overlaps between atoms in a molecule.
-    
-    Args:
-    - mol (rdkit.Chem.Mol): The molecule to check.
-    - threshold (float): Distance threshold for overlap detection.
-    
-    Returns:
-    - overlaps (list): List of tuples with overlapping atom indices and their distance.
-    """
-    overlaps = []
-    
-    # Calculate pairwise distances
-    conf = mol.GetConformer()
-    for i in range(mol.GetNumAtoms()):
-        if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:
-            continue
-            
-        for j in range(i+1, mol.GetNumAtoms()):
-            # Skip hydrogen atoms
-            if mol.GetAtomWithIdx(j).GetAtomicNum() == 1:
-                continue
-            
-            dist = rdMolTransforms.GetBondLength(conf, i, j)
-            if dist < threshold:
-                overlaps.append((i, j, dist))
-                break  # Remove this break if you want to find all overlaps for each atom
-            
-                
-    return overlaps
 
 def generate_rotated_vectors(base_vector, num_steps, angle_interval):
     """
@@ -361,10 +329,10 @@ def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot,dis):
 def mol_to_smiles(filepath):
     """
     Converts a .mol file to a SMILES string.
-    
+
     Args:
     - filepath: Path to the .mol file.
-    
+
     Returns:
     - A SMILES string representation of the molecule.
     """
@@ -394,35 +362,35 @@ def closest_point_on_segment(point, segment_start, segment_end):
         return segment_end
     return segment_start + projection_length * seg_unit_vec
 
-def check_overlaps(mol, threshold=0.8):
+def check_overlaps(mol, threshold=0.2):
     """
     Check for overlaps between atoms in a molecule.
-    
+
     Args:
     - mol (rdkit.Chem.Mol): The molecule to check.
     - threshold (float): Distance threshold for overlap detection.
-    
+
     Returns:
     - overlaps (list): List of tuples with overlapping atom indices and their distance.
     """
     overlaps = []
-    
+
     # Calculate pairwise distances
     conf = mol.GetConformer()
     for i in range(mol.GetNumAtoms()):
         if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:
             continue
-            
+
         for j in range(i+1, mol.GetNumAtoms()):
             # Skip hydrogen atoms
             if mol.GetAtomWithIdx(j).GetAtomicNum() == 1:
                 continue
-            
+
             dist = rdMolTransforms.GetBondLength(conf, i, j)
-            if dist < threshold:
+            if dist < 1-threshold:
                 overlaps.append((i, j, dist))
                 break  # Remove this break if you want to find all overlaps for each atom
-            
-                
+
+
     return overlaps
 

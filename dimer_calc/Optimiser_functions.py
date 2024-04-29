@@ -1,128 +1,166 @@
 import os
-import numpy as np
-import pandas as pd
 import stk
-from rdkit import Chem
-from rdkit.Chem import rdRGroupDecomposition, AllChem as rdkit, rdMolTransforms
 import stko
 from . import utils
 from . import config
-from .cage import Cage, CageOperations
+from .cage import CageOperations
 from .pores import *
-import re
-import subprocess as sp
 import uuid
+import pywindow as pw
 import shutil
 from itertools import combinations
-from rdkit.Chem import AllChem as rdkit
-from stko._internal.molecular.periodic.unitcell import UnitCell
-from stko._internal.optimizers.optimizers import Optimizer
 from stko._internal.optimizers.utilities import (
     get_metal_atoms,
-    get_metal_bonds,
-    has_h_atom,
-    has_metal_atom,
-    to_rdkit_mol_without_metals,
 )
-from stko._internal.utilities.exceptions import (
-    ExpectedMetalError,
-    ForceFieldSetupError,
-    OptimizerError,
-    PathError,
-)
+import rdkit.Chem.AllChem as rdkit
+from sklearn.metrics.pairwise import cosine_similarity
 
 GULP_PATH = config.GULP_PATH
 
+class Axes:
+    def ByPywindow(self,filename): #This doesnt work, not sure I understand python
+        molsys = pw.MolecularSystem.load_file(filename)
+        mol = molsys.system_to_molecule()
+        windows=mol.calculate_windows()
+        com=mol.calculate_centre_of_mass()
+        adjusted_windows = windows - com
+        return adjusted_windows
+        #print("Performing ByPywindow calculation or operation.")
+        #return "Result of ByPywindow"
+    def BySmarts(self,smarts_string):
+        print("Performing BySmarts calculation or operation.")
+        return "Result of BySmarts"
+        rdkit_mol = self.to_rdkit_mol()
+        rdkit.SanitizeMol(rdkit_mol)
+        centroid_smiles = [self.get_centroid(atom_ids=atom_ids) for atom_ids in rdkit_mol.GetSubstructMatches(query=rdkit.MolFromSmarts(smarts_string))]
+        centroid_smiles = np.asarray(centroid_smiles)
+        centroid_mol = self.get_centroid()
+        distances = [np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles]
+        vectors = np.array([(smile - centroid_mol) / np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles])
+        return vectors,np.mean(distances)
+    def BySmiles(self, smiles_string):
 
-class GulpUFFOptimizer:
-    """
-    Applies forcefield optimizers that can handle metal centres.
+        print("Performing BySmiles calculation or operation.")
 
-    Notes:
+        rdkit_mol = self.to_rdkit_mol()
+        rdkit.SanitizeMol(rdkit_mol)
+        centroid_smiles = [self.get_centroid(atom_ids=atom_ids) for atom_ids in rdkit_mol.GetSubstructMatches(query=rdkit.MolFromSmiles(smiles_string))]
+        centroid_smiles = np.asarray(centroid_smiles)
+        centroid_mol = self.get_centroid()
+        distances = [np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles]
+        vectors = np.array([(smile - centroid_mol) / np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles])
+        return vectors,np.mean(distances)
 
-        By default, :meth:`optimize` will run an optimisation using the
-        UFF4MOF. This forcefield requires some explicit metal atom
-        definitions, which are determined by the user.
+    def ByMidpoint(self,vectors,vertice_size,no_vectors_define_facet, tolerance=0.1):
+        #if isinstance(vectors, np.ndarray):
+        #    vectors = [vectors[i] for i in range(vectors.shape[0])]
+        #print()
+        if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
+            vectors = vectors[0]  # Assuming the first element is the NumPy array with all vectors
 
-        This code was originally written for use with Gulp 5.1 on Linux and has
-        not been officially tested on other versions and operating systems.
-        Make sure to sanity check the output.
+    # Convert numpy array of vectors into a list of numpy arrays
+        vectors_list = [vectors[i] for i in range(vectors.shape[0])]
+        all_distances = [utils.distance(v1, v2) for v1, v2 in combinations(vectors_list, 2)]
+        min_distance = min(filter(lambda d: d > 0, all_distances))
 
-    Examples:
+        midpoints = []  # List to store all midpoints that meet the condition
+        midpoint_size = []  # List to store all midpoints that meet the condition
 
-        While metal atoms are not required, UFF4MOF is useful because it
-        encompasses almost all chemical environments commonly found in
-        metal-organic structures. Better forcefields exist for purely
-        organic molecules! An interface with GULP is provided, which takes
-        the forcefield types assigned by RDKit for non-metal atoms and
-        user defined forcefield types for metal atoms to perform geometry
-        optimisations.
+        # Check each combination of n vectors
+        for combination in combinations(vectors_list, no_vectors_define_facet):
+            distances = [utils.distance(combination[i], combination[(i + 1) % no_vectors_define_facet]) for i in range(no_vectors_define_facet)]
+            if max(distances) - min(distances) <= tolerance * min_distance:
+                midpoint = np.mean(combination, axis=0)
+                midpoint_size.append(np.linalg.norm(midpoint))
+                midpoint=utils.normalize_vector(midpoint)
+                midpoints.append(midpoint)  # Add the computed midpoint to the list
 
-        .. code-block:: python
+        return np.array(midpoints),np.mean(midpoint_size)*vertice_size
 
-            import stk
-            import stko
-            from rdkit.Chem import AllChem as rdkit
+    def RemoveCommon(self,arr1, arr2,tolerance=0.1):
 
-            # Produce a Pd+2 atom with 4 functional groups.
-            atom = rdkit.MolFromSmiles('[Pd+2]')
-            atom.AddConformer(rdkit.Conformer(atom.GetNumAtoms()))
-            palladium_atom = stk.BuildingBlock.init_from_rdkit_mol(atom)
-            atom_0, = palladium_atom.get_atoms(0)
-            palladium_atom = palladium_atom.with_functional_groups(
-                (stk.SingleAtom(atom_0) for i in range(4))
-            )
+        filtered_arr1=[]
+        for vec1 in arr1:
+            diff = True
+            for i, vec2 in enumerate(arr2):
+                similarity = cosine_similarity([vec1], [vec2])[0][0]
+                if similarity > (1-tolerance):
+                    diff = False
+                    break
+            if diff:
+                filtered_arr1.append(vec1)
 
-            # Build a building block with two functional groups using
-            # the SmartsFunctionalGroupFactory.
-            bb1 = stk.BuildingBlock(
-                smiles=('C1=CC(=CC(=C1)C2=CN=CC=C2)C3=CN=CC=C3'),
-                functional_groups=[
-                    stk.SmartsFunctionalGroupFactory(
-                        smarts='[#6]~[#7X2]~[#6]',
-                        bonders=(1, ),
-                        deleters=(),
-                    ),
-                ],
-            )
+        return np.array(filtered_arr1)
 
-            # Build a metal-organic cage with dative bonds between
-            # GenericFunctionalGroup and SingleAtom functional groups.
-            cage = stk.ConstructedMolecule(
-                stk.cage.M2L4Lantern(
-                    building_blocks={
-                        palladium_atom: (0, 1),
-                        bb1: (2, 3, 4, 5)
-                    },
-                    reaction_factory=stk.DativeReactionFactory(
-                        stk.GenericReactionFactory(
-                            bond_orders={
-                                frozenset({
-                                    stk.GenericFunctionalGroup,
-                                    stk.SingleAtom
-                                }): 9
-                            }
-                        )
+
+class DimerGenerator:
+
+    def __init__(
+        self,
+        axes: np.ndarray,
+        displacement: float = 7,
+        displacement_step_size: float = 1,
+        rotation_limit: float = 120,
+        rotation_step_size: float = 30,
+        overlap_tolerance: float = 0.1,
+        slide: bool = False,
+    ):
+        self._axes = axes
+        self._displacement = displacement
+        self._displacement_step_size = displacement_step_size
+        self._rotation_limit = rotation_limit
+        self._rotation_step_size = rotation_step_size
+        self._overlap_tolerance = overlap_tolerance
+        self._slide = slide
+
+    def generate(self,
+        axes: np.ndarray,
+        second_cage_orientation: np.ndarray,
+        displacement_distance: float,
+        displacement: float = 7,
+        displacement_step_size: float = 1,
+        rotation_limit: float = 120,
+        rotation_step_size: float = 30,
+        overlap_tolerance: float = 0.2,
+        slide: bool = False):
+
+        cage = stk.BuildingBlock.init_from_molecule(self)
+        origin = cage.get_centroid()
+        guest_cage=cage.with_rotation_between_vectors(second_cage_orientation,axes, origin)
+        rotated_vectors=utils.generate_rotated_vectors(axes, rotation_limit/rotation_step_size, 30)
+        perpendicular_vector=utils.calculate_perpendicular_vector(axes)
+
+        dimer_list = []
+        for i in range(0, int(displacement/displacement_step_size)):
+            if slide:
+                displaced_centers=utils.find_integer_points(axes, displacement_distance*2-2+i, int(displacement_distance) + 1)
+            else:
+                displaced_centers= [(displacement_distance*2-2+i)*axes]
+            for center in displaced_centers:
+                rot_by=0
+                for vector in rotated_vectors:
+                    rotated_guest = utils.create_rotated_guest(guest_cage,perpendicular_vector,vector,center)
+                    dimer = stk.ConstructedMolecule(
+                        topology_graph=stk.host_guest.Complex(host=self, guests=rotated_guest)
                     )
-                )
-            )
+                    mol = dimer.to_rdkit_mol()
+                    overlaps = utils.check_overlaps(mol,overlap_tolerance)
+                    if overlaps:
+                        rot_by=rot_by+1
+                        continue
+                    dimer_list.append({
+                        'Displacement shell':(2-2+i),
+                        'Displacement centroid': center,
+                        'Rotation': rot_by*rotation_step_size,
+                        'Dimer': dimer
+                    })
+                    rot_by=rot_by+1
+        return dimer_list
 
-            # Perform Gulp optimisation with UFF4MOF.
-            # Use conjugate gradient method for a slower, but more stable
-            # optimisation.
+        #def test_overlap
 
-            gulp_opt = stko.GulpUFFOptimizer(
-                gulp_path='path/to/gulp',
-                metal_FF={46: 'Pd4+2'},
-                conjugate_gradient=True
-            )
 
-            # Assign the force field.
-            gulp_opt.assign_FF(cage)
-            # Run optimization.
-            cage = gulp_opt.optimize(mol=cage)
-
-    """
+class Dimer(stko.GulpUFFOptimizer):
 
     def __init__(
         self,
@@ -132,404 +170,53 @@ class GulpUFFOptimizer:
         metal_ligand_bond_order: str | None = None,
         conjugate_gradient: bool = False,
         output_dir: str | None = None,
-        fixed_atom_set: list[int] | None = None,       
+        fixed_atom_set: list[int] | None = None,
     ):
-        """
-        Parameters:
-
-            gulp_path:
-                Path to GULP executable.
-
-            maxcyc:
-                Set the maximum number of optimisation steps to use.
-                Default in Gulp is 1000.
-
-            metal_FF:
-                Dictionary with metal atom forcefield assignments.
-                Key: :class:`int` : atomic number.
-                Value: :class:`str` : UFF4MOF forcefield type.
-
-            metal_ligand_bond_order:
-                Bond order to use for metal-ligand bonds. Defaults to
-                `half`, but using `resonant` can increase the force
-                constant for stronger metal-ligand interactions.
-
-            conjugate_gradient:
-                ``True`` to use Conjugate Graditent method.
-                Defaults to ``False``
-
-            output_dir:
-                The name of the directory into which files generated during
-                the calculation are written, if ``None`` then
-                :func:`uuid.uuid4` is used.
-
-        """
-
-        self._check_path(gulp_path)
-        self._gulp_path = gulp_path
-        self._maxcyc = maxcyc
-        self._metal_FF = metal_FF
-        self._metal_ligand_bond_order = (
-            "half"
-            if metal_ligand_bond_order is None
-            else metal_ligand_bond_order
-        )
-        self._conjugate_gradient = conjugate_gradient
-        self._output_dir = output_dir
+        super().__init__(gulp_path=gulp_path, output_dir=output_dir, metal_FF=metal_FF,
+                         conjugate_gradient=conjugate_gradient, maxcyc=maxcyc,metal_ligand_bond_order=metal_ligand_bond_order)
         self._fixed_atom_set = fixed_atom_set
 
-    def _check_path(self, path: str) -> None:
-        if not os.path.exists(path):
-            raise PathError(f"GULP not found at {path}")
+    def optimize(self, mol: stk.Molecule,fixed_atom_set=None) -> stk.Molecule:
+        if self._output_dir is None:
+            output_dir = str(uuid.uuid4().int)
+        else:
+            output_dir = self._output_dir
+        output_dir = os.path.abspath(output_dir)
 
-    def _add_atom_charge_flags(self, atom: rdkit.Atom, atomkey: str) -> str:
-        """
-        Add atom charge flags for forcefield.
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
 
-        Code inspired by:
-        https://github.com/rdkit/rdkit
-        >   Code/GraphMol/ForceFieldHelpers/UFF/AtomTyper.cpp
+        os.mkdir(output_dir)
+        init_dir = os.getcwd()
+        os.chdir(output_dir)
 
-        """
-        total_valence = rdkit.Atom.GetTotalValence(atom)
-        atnum = int(atom.GetAtomicNum())
+        in_file = "gulp_opt.gin"
+        out_file = "gulp_opt.ginout"
+        output_xyz = "gulp_opt.xyz"
 
-        # Go through element cases.
-        # Mg.
-        if atnum == 12:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Al.
-        elif atnum == 13:
-            if total_valence != 3:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
+        metal_atoms = get_metal_atoms(mol)
 
-        # Si.
-        elif atnum == 14:
-            if total_valence != 4:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # P.
-        elif atnum == 15:
-            if total_valence == 3:
-                atomkey += "+3"
-            elif total_valence == 5:
-                atomkey += "+5"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-
-        # S.
-        elif atnum == 16:
-            hybrid = rdkit.Atom.GetHybridization(atom)
-            if hybrid != rdkit.HybridizationType.SP2:
-                if total_valence == 2:
-                    atomkey += "+2"
-                elif total_valence == 4:
-                    atomkey += "+4"
-                elif total_valence == 6:
-                    atomkey += "+6"
-                else:
-                    raise ForceFieldSetupError(
-                        f"UFFTYPER: Unrecognized charge state for "
-                        f"atom: {atom.GetIdx}"
-                    )
-        # Zn.
-        elif atnum == 30:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-
-        # Ga.
-        elif atnum == 31:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # As.
-        elif atnum == 33:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Se.
-        elif atnum == 34:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-
-        # Cd.
-        elif atnum == 48:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # In.
-        elif atnum == 49:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-
-        # Sb.
-        elif atnum == 51:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Te.
-        elif atnum == 52:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Hg.
-        elif atnum == 80:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Tl.
-        elif atnum == 81:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Pb.
-        elif atnum == 82:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Bi.
-        elif atnum == 83:
-            if total_valence == 3:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Po.
-        elif atnum == 84:
-            if total_valence == 2:
-                atomkey += "+2"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        # Lanthanides.
-        elif atnum >= 57 and atnum <= 71:
-            if total_valence == 6:
-                atomkey += "+3"
-            else:
-                raise ForceFieldSetupError(
-                    f"UFFTYPER: Unrecognized charge state for atom: "
-                    f"{atom.GetIdx}"
-                )
-        return atomkey
-
-    def _get_atom_label(self, atom: rdkit.Atom) -> str:
-        """
-        Get FF atom label.
-
-        Code inspired by:
-        https://github.com/rdkit/rdkit
-        >   Code/GraphMol/ForceFieldHelpers/UFF/AtomTyper.cpp
-
-        """
-        atnum = int(atom.GetAtomicNum())
-        atomkey = atom.GetSymbol()
-        if len(atomkey) == 1:
-            atomkey += "_"
-
-        table = rdkit.GetPeriodicTable()
-
-        chk1 = rdkit.PeriodicTable.GetDefaultValence(table, atnum) == -1
-        chk2 = rdkit.PeriodicTable.GetNOuterElecs(table, atnum) != 1
-        chk3 = rdkit.PeriodicTable.GetNOuterElecs(table, atnum) != 7
-        chk4 = chk2 and chk3
-        if chk1 or chk4:
-            hybrid = rdkit.Atom.GetHybridization(atom)
-            if atnum == 84:
-                atomkey += "3"
-                if hybrid != rdkit.HybridizationType.SP3:
-                    raise ForceFieldSetupError(
-                        f"UFFTYPER: Unrecognized hybridization for"
-                        f" atom: {atom.GetIdx}"
-                    )
-            elif atnum == 80:
-                atomkey += "1"
-                if hybrid != rdkit.HybridizationType.SP:
-                    raise ForceFieldSetupError(
-                        f"UFFTYPER: Unrecognized hybridization for"
-                        f" atom: {atom.GetIdx}"
-                    )
-            else:
-                if hybrid == rdkit.HybridizationType.SP:
-                    atomkey += "1"
-                elif hybrid == rdkit.HybridizationType.SP2:
-                    chk1a = rdkit.Atom.GetIsAromatic(atom)
-                    bonds = rdkit.Atom.GetBonds(atom)
-                    conjugated = False
-                    for bond in bonds:
-                        if rdkit.Bond.GetIsConjugated(bond):
-                            conjugated = True
-                            break
-                    chk2a = conjugated
-                    chk3a = atnum in [6, 7, 8, 16]
-                    chk4a = chk1a or chk2a
-                    if chk4a and chk3a:
-                        atomkey += "R"
-                    else:
-                        atomkey += "2"
-                elif hybrid == rdkit.HybridizationType.SP3:
-                    atomkey += "3"
-                elif hybrid == rdkit.HybridizationType.SP3D:
-                    atomkey += "5"
-                elif hybrid == rdkit.HybridizationType.SP3D2:
-                    atomkey += "6"
-                else:
-                    raise ForceFieldSetupError(
-                        f"UFFTYPER: Unrecognized hybridization for"
-                        f" atom: {atom.GetIdx}"
-                    )
-        atomkey = self._add_atom_charge_flags(atom, atomkey)
-        return atomkey
-
-    def _type_translator(self) -> dict[str, str]:
-        type_translator: dict[str, str] = {}
-        types = sorted(
-            set(
-                [  # type: ignore[type-var]
-                    self.atom_labels[i][0] for i in self.atom_labels
-                ]
+        try:
+            # Write GULP file.
+            self._write_gulp_file(
+                mol=mol,
+                metal_atoms=metal_atoms,
+                in_file=in_file,
+                output_xyz=output_xyz,
+                fixed_atom_set=fixed_atom_set,
             )
-        )
-        for t in types:
-            if not t[1].isalpha():  # type:ignore[index]
-                symb = t[0]  # type:ignore[index]
-            else:
-                symb = t[0:2]  # type:ignore[index]
-            for i in range(1, 100):
-                name = f"{symb}{i}"
-                if name in type_translator.values():
-                    continue
-                else:
-                    type_translator[t] = name  # type: ignore[index]
-                    break
+            # Run.
+            self._run_gulp(in_file, out_file)
 
-        return type_translator
+            # Update from output.
+            mol = mol.with_structure_from_file(output_xyz)
 
-    def _position_section(
-        self, mol: stk.Molecule, type_translator: dict
-    ) -> str:
-        position_section = "\ncartesian\n"
-        for atom in mol.get_atoms():
-            atom_type = type_translator[self.atom_labels[atom.get_id()][0]]
-            position = mol.get_centroid(atom_ids=atom.get_id())
-            posi_string = (
-                f"{atom_type} core {round(position[0], 5)} "
-                f"{round(position[1], 5)} {round(position[2], 5)}\n"
-            )
-            position_section += posi_string
+        finally:
+            os.chdir(init_dir)
 
-        return position_section
+        result=super().optimize(mol)
 
-
-    def _bond_section(
-        self,
-        mol: stk.Molecule,
-        metal_atoms: list[stk.Atom],
-    ) -> str:
-        bond_section = "\n"
-        for bond in mol.get_bonds():
-            atom_types = [
-                self.atom_labels[i.get_id()][0]
-                for i in [bond.get_atom1(), bond.get_atom2()]
-            ]
-
-            # Set bond orders.
-            if has_h_atom(bond):
-                # H has bond order of 1.
-                bond_type = ""
-            elif has_metal_atom(bond, metal_atoms):
-                bond_type = self._metal_ligand_bond_order
-            elif (
-                "_R" in atom_types[0]  # type:ignore[operator]
-                and "_R" in atom_types[1]  # type:ignore[operator]
-            ):
-                bond_type = "resonant"
-            elif bond.get_order() == 1:
-                bond_type = ""
-            elif bond.get_order() == 2:
-                bond_type = "double"
-            elif bond.get_order() == 3:
-                bond_type = "triple"
-
-            string = (
-                f"connect {bond.get_atom1().get_id()+1} "
-                f"{bond.get_atom2().get_id()+1} {bond_type}"
-            )
-            bond_section += string + "\n"
-
-        return bond_section
-
-    def _species_section(self, type_translator: dict) -> str:
-        species_section = "\nspecies\n"
-        for spec in type_translator:
-            name = type_translator[spec]
-            species_section += f"{name} {spec}\n"
-
-        return species_section
+        return result
 
     def _constrain_section(self, fixed_atom_set) -> str:
         constrain_section = "\n"
@@ -537,7 +224,6 @@ class GulpUFFOptimizer:
             constrain_section += f"fix_atom {constrain}\n"
 
         return constrain_section
-
     def _write_gulp_file(
         self,
         mol: stk.Molecule,
@@ -588,132 +274,6 @@ class GulpUFFOptimizer:
             f.write(library)
             f.write(output_section)
 
-    def assign_FF(self, mol: stk.Molecule) -> None:
-        """
-        Assign forcefield types to molecule.
-
-        Parameters:
-
-            mol:
-                The molecule to be optimized.
-
-        """
-
-        FutureWarning(
-            "We have found some minor discrepancies in this "
-            "assignment algorithm, which is based off rdkit code. "
-            "Changes should come soon. This UFF optimisation should "
-            " not be your final step! Due to this, some tests in "
-            "test_uff_assign_ff.py have been muted."
-        )
-
-        metal_atoms = get_metal_atoms(mol)
-        metal_ids = [i.get_id() for i in metal_atoms]
-
-        if len(metal_ids) > 1 and self._metal_FF is None:
-            raise ExpectedMetalError(
-                "No metal FF provivded, but metal atoms were found ("
-                f"{metal_atoms})"
-            )
-
-        metal_bonds, _ = get_metal_bonds(mol, metal_atoms)
-        edit_mol = to_rdkit_mol_without_metals(
-            mol=mol, metal_atoms=metal_atoms, metal_bonds=metal_bonds
-        )
-
-        # Get forcefield parameters.
-        rdkit.SanitizeMol(edit_mol)
-        self.atom_labels = {}
-
-        for i in range(edit_mol.GetNumAtoms()):
-            if i in metal_ids:
-                self.atom_labels[i] = [None, "metal", None]
-            else:
-                atom = edit_mol.GetAtomWithIdx(i)
-                atom_label = self._get_atom_label(atom)
-                self.atom_labels[i] = [atom_label, None, None]
-
-        # Write UFF4MOF specific forcefield parameters.
-        # Metals.
-        for atomid in self.atom_labels:
-            if self.atom_labels[atomid][1] == "metal":
-                (atom,) = mol.get_atoms(atomid)
-                atom_no = atom.get_atomic_number()
-                self.atom_labels[atomid][0] = (
-                    self._metal_FF[  # type:ignore[index]
-                        atom_no
-                    ]
-                )
-
-    def _run_gulp(self, in_file: str, out_file: str) -> None:
-        cmd = f"{self._gulp_path} < {in_file}"
-        with open(out_file, "w") as f:
-            # Note that sp.call will hold the program until completion
-            # of the calculation.
-            sp.call(
-                cmd,
-                stdin=sp.PIPE,
-                stdout=f,
-                stderr=sp.PIPE,
-                # Shell is required to run complex arguments.
-                shell=True,
-            )
-
-
-    def extract_final_energy(self, out_file: str) -> float:
-        nums = re.compile(r"[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?")
-        with open(out_file, "r") as f:
-            for line in f.readlines():
-                if "Final energy =" in line:
-                    string = nums.search(line.rstrip())
-                    return float(string.group(0))  # type: ignore[union-attr]
-
-        raise OptimizerError(
-            f'"Final energy =" not found in {out_file}, implying unsuccesful'
-            " optimisation"
-        )
-
-
-    def optimize(self, mol: stk.Molecule,fixed_atom_set=None) -> stk.Molecule:
-        if self._output_dir is None:
-            output_dir = str(uuid.uuid4().int)
-        else:
-            output_dir = self._output_dir
-        output_dir = os.path.abspath(output_dir)
-
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
-
-        os.mkdir(output_dir)
-        init_dir = os.getcwd()
-        os.chdir(output_dir)
-
-        in_file = "gulp_opt.gin"
-        out_file = "gulp_opt.ginout"
-        output_xyz = "gulp_opt.xyz"
-
-        metal_atoms = get_metal_atoms(mol)
-
-        try:
-            # Write GULP file.
-            self._write_gulp_file(
-                mol=mol,
-                metal_atoms=metal_atoms,
-                in_file=in_file,
-                output_xyz=output_xyz,
-                fixed_atom_set=fixed_atom_set,
-            )
-            # Run.
-            self._run_gulp(in_file, out_file)
-
-            # Update from output.
-            mol = mol.with_structure_from_file(output_xyz)
-
-        finally:
-            os.chdir(init_dir)
-
-        return mol
-
 
 class GulpDimerOptimizer:
     def __init__(self, gulp_path):
@@ -733,23 +293,25 @@ class GulpDimerOptimizer:
                 for last_line in lines[::-1]:
                     if last_line.strip():  # This ensures we skip any empty lines at the end of the file
                         break
-                    
+
                 if last_line.startswith("  Job Finished at "):
                     print(f"Skipping dimer Cage_{num}_{dis_cent}_{rot}_{dis}_{mode} as it is already done")
                     return  # Exit the function if the job is already done
 
         fix_atom = fixed_atom_set
-        gulp_opt = GulpUFFOptimizer(
+        gulp_opt = Dimer(
             gulp_path=self.gulp_path,
             output_dir=output_dir,  # Change to correct path for Tmp files
             metal_FF={45: 'Rh6+3'},
             conjugate_gradient=True,
             maxcyc=500,
             fixed_atom_set=fix_atom,
-        )    
+        )
         gulp_opt.assign_FF(cage)
         structure = gulp_opt.optimize(mol=cage, fixed_atom_set=fix_atom)
         structure.write(f'{output_dir}_opt.mol')
+
+
 # %%
     def run_calculations(self,Cagenum, molecule_type, molecule_list,fixed_atom_set):
         for molecule_cent in molecule_list:
@@ -769,25 +331,25 @@ class GulpDimerOptimizer:
     def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",metal_atom=None,constrain=None,parallel=1,opt=False):
         """
         The main function for running a calculation
-        Args: 
+        Args:
         - Cagenum: number of the cage
         - cage: optimized constructed cage
-        - arene_smile: smiles string of 
+        - arene_smile: smiles string of
 
         """
         #Create a folder named Cagenum
         foldername = f"Cage{Cagenum}"
         os.makedirs(foldername, exist_ok=True)
-        
+
         ww=True
         wa=True
         aa=True
         wv=True
-        
+
         conditions = {'ww': ww, 'wa': wa, 'aa': aa, 'wv': wv}
         arene_smile=utils.remove_aldehyde(arene_smile)
         diamine_smile=utils.remove_aldehyde(diamine_smile)
-        
+
         for suffix in conditions:
             utils.create_folders_and_return_paths(foldername, [f"_{suffix}"])
 
@@ -810,7 +372,7 @@ class GulpDimerOptimizer:
     def run_unconstrained_calculations(self,dir):
         for filename in os.listdir(dir):
         # Check if the file is a .mol file
-            
+
             if filename.endswith(".mol"):
                 output_dir=f"{dir}/{filename[:-4]}"
                 os.makedirs(output_dir, exist_ok=True)
@@ -824,7 +386,7 @@ class GulpDimerOptimizer:
                         for last_line in lines[::-1]:
                             if last_line.strip():  # This ensures we skip any empty lines at the end of the file
                                 break
-                            
+
                         if last_line.startswith("  Job Finished at "):
                             print(f"Skipping dimer {filename[:-4]} as it is already done")
                         else: # Exit the function if the job is already done
@@ -839,7 +401,7 @@ class GulpDimerOptimizer:
                                 metal_FF={45: 'Rh6+3'},
                                 conjugate_gradient=True,
                                 maxcyc=500,
-                            )    
+                            )
                             gulp_opt.assign_FF(cage)
                             structure = gulp_opt.optimize(mol=cage)
                             structure.write(f'{output_dir}_opt.mol')
@@ -853,12 +415,12 @@ class GulpDimerOptimizer:
                         metal_FF={45: 'Rh6+3'},
                         conjugate_gradient=True,
                         maxcyc=500,
-                    )    
+                    )
                     gulp_opt.assign_FF(cage)
                     structure = gulp_opt.optimize(mol=cage)
                     structure.write(f'{output_dir}_opt.mol')
     # Handle 'wv' condition separately
-        
+
         #rdkit_mol = list_wa[-1][-1].to_rdkit_mol()
         #fixed_atom_set = CageOperations.fix_atom_set(rdkit_mol, diamine_smile,metal_atom=metal_atom)
 #
@@ -917,10 +479,10 @@ class OPLSDimerOptimizer:
     def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",metal_atom=None,constrain=None,parallel=1,opt=False):
         """
         The main function for running a calculation
-        Args: 
+        Args:
         - Cagenum: number of the cage
         - cage: optimized constructed cage
-        - arene_smile: smiles string of 
+        - arene_smile: smiles string of
 
         """
         arene_smile=utils.remove_aldehyde(arene_smile)
@@ -937,7 +499,7 @@ class OPLSDimerOptimizer:
         list_wa, list_ww, list_aa, list_wv, fixed_atom_set=CageOperations.displace_cages(cage, arene_smile, diamine_smile, sym,metal_atom)
 
         new_content = utils.generate_com_content(fixed_atom_set)
-        
+
         self.write_com_file(new_content, os.path.join(mae_folder_paths[0], foldername+".com"), foldername+"_ww_merged")
         self.write_com_file(new_content, os.path.join(mae_folder_paths[1], foldername+".com"), foldername+"_wa_merged")
         self.write_com_file(new_content, os.path.join(mae_folder_paths[2], foldername+".com"), foldername+"_aa_merged")
@@ -1167,10 +729,10 @@ class XTBDimerOptimizer:
             molecule=molecule,
             path=f'Cage{num}_xtb/Cage{num}_xtb_{mode}/Cage_{num}_{dis_cent}_{rot}_{dis}_{mode}.mol'
     )
-        
+
     def add_line_to_job_script(self,filename, input_string,constrain,parallel,opt):
         # Constructing the line to be added
-        line_to_add = f"xtb "
+        line_to_add = "xtb "
         if constrain:
             line_to_add += "--input xtb.inp "
         line_to_add += f"--parallel {parallel} --namespace {input_string} {input_string}.mol --iterations 1000 "
@@ -1225,17 +787,17 @@ class XTBDimerOptimizer:
         formatted_combinations = ["    distance: {}, {}, auto".format(x, y) for x, y in combinations_list]
 
         # Constructing the new content with $constrain at the start and $end at the end
-        new_content = "$constrain\n" + "\n".join(formatted_combinations) + "\n$end"    
+        new_content = "$constrain\n" + "\n".join(formatted_combinations) + "\n$end"
         return new_content
 
 
     def run_a_cage(self,Cagenum, cage, arene_smile, diamine_smile,sym="4_6",cx1=False,metal_atom=None,constrain=None,parallel=1,opt=False):
         """
         The main function for running a calculation
-        Args: 
+        Args:
         - Cagenum: number of the cage
         - cage: optimized constructed cage
-        - arene_smile: smiles string of 
+        - arene_smile: smiles string of
 
         """
 
@@ -1300,7 +862,7 @@ cd $PBS_O_WORKDIR
 
 #module load intel-suite
 #module load cp2k/6.1-avx2
-#module load gcc/10.2.0  
+#module load gcc/10.2.0
 #module load cuda/10.1
 #module load mpi
 cd $PBS_O_WORKDIR

@@ -123,7 +123,7 @@ class CageOperations:
         perpendicular_vector_a = utils.calculate_perpendicular_vector(direction_vector_a)
         list_wa, list_ww, list_aa, list_wv = [], [], [], []
         for i in np.arange(0, 7, 1):
-            
+
             displaced_centers_w =utils.find_integer_points(direction_vector_w, displacement_distance*2-2+i, int(displacement_distance) + 1)
             displaced_centers_a =utils.find_integer_points(direction_vector_a, displacement_distance*2-2+i, int(displacement_distance) + 1)
 
@@ -148,7 +148,7 @@ class CageOperations:
                     complex_wv = stk.ConstructedMolecule(
                         topology_graph=stk.host_guest.Complex(host=self, guests=guest_wv)
                     )
-      
+
                     list_wa_rot.append(complex_wa)
                     list_ww_rot.append(complex_ww)
                     list_aa_rot.append(complex_aa)
@@ -162,8 +162,8 @@ class CageOperations:
             list_aa.append(list_aa_cent)
             list_wv.append(list_wv_cent)
         return list_wa, list_ww, list_aa, list_wv
-    
-    def generate_ww_cages(cage,guest_bb_ww, vec, vec_perpendicular, rotated_vectors, dist):  
+
+    def generate_ww_cages(cage,guest_bb_ww, vec, vec_perpendicular, rotated_vectors, dist):
         """
         Args:
         - cage: constructed molecule of the cage
@@ -173,7 +173,7 @@ class CageOperations:
         - vec: direction vector of displacement
         - vec_perpendicular: orthogonal vector of vec
         - rotated_vectors: a list of rotated vectors
-        - dist: magnitude of minimum displacement 
+        - dist: magnitude of minimum displacement
 
         Returns:
         - lists of constructed dimers with packings of ww, wa, aa and rotations
@@ -182,28 +182,28 @@ class CageOperations:
         """
 
 
-    
+
     def fix_atom_set(self, diamine_smiles,metal_atom=None):
         """
         Return the atom IDs of the carbon atoms from the diamine that are adjacent to the amine nitrogen atoms.
-    
+
         Args:
         - mol_file_path (str): Path to the .mol file.
         - diamine_smiles (str): SMILES string of the diamine. Default is "NC1CCCCC1N".
-    
+
         Returns:
         - List[int]: List of atom IDs.
         """
-    
+
         # Use the SMILES string of the diamine to identify its structure
         diamine = Chem.MolFromSmiles(diamine_smiles)
-    
+
         # Get the substructure matches for the diamine
         matches = self.GetSubstructMatches(diamine)
-    
+
         # List to store carbon atom ids
         fixed_atom_ids = []
-    
+
         # Iterate over the matches
         if (metal_atom!=None):  # Checks if metal_ids is not empty
             for atom in self.GetAtoms():
@@ -270,7 +270,7 @@ class CageOperations:
                     # Calculate the midpoint of the facet
                     midpoint = [(v1[0] + v2[0] + v3[0] + v4[0]) / 4, (v1[1] + v2[1] + v3[1] + v4[1]) / 4, (v1[2] + v2[2] + v3[2] + v4[2]) / 4]
                     return midpoint
-    
+
     def displace_cages(self, arene_smile,diamine_smile,sym,metal_atom):
         dist = CageOperations.cage_size(self, arene_smile)
         vecs_vertex = CageOperations.cage_vertex_vec(self, diamine_smile) #this has all the vectors of the arene to centroid
@@ -285,7 +285,7 @@ class CageOperations:
             vec_w = CageOperations.find_midpoint_of_facet(self,vecs_vertex,sym)
             vec_a = CageOperations.calculate_cage_vector(self, arene_smile)
 
-        
+
         if sym=="4_6":
             guest_bb_wa = stk.BuildingBlock.init_from_molecule(self)
             guest_bb_aa = stk.BuildingBlock.init_from_molecule(self)
