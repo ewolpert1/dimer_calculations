@@ -197,16 +197,17 @@ class CageOperations:
 
         # Use the SMILES string of the diamine to identify its structure
         diamine = Chem.MolFromSmiles(diamine_smiles)
+        rdkit_mol = self.to_rdkit_mol()
 
         # Get the substructure matches for the diamine
-        matches = self.GetSubstructMatches(diamine)
+        matches = rdkit_mol.GetSubstructMatches(diamine)
 
         # List to store carbon atom ids
         fixed_atom_ids = []
 
         # Iterate over the matches
         if (metal_atom!=None):  # Checks if metal_ids is not empty
-            for atom in self.GetAtoms():
+            for atom in rdkit_mol.GetAtoms():
                 # Check if the atom symbol matches metal_atom
                 if atom.GetSymbol() == metal_atom:
                     # Append the atom's index if it matches
@@ -214,7 +215,7 @@ class CageOperations:
         else:
             for match in matches:
                 for atom_id in match:
-                    atom = self.GetAtomWithIdx(atom_id)
+                    atom = rdkit_mol.GetAtomWithIdx(atom_id)
                     # Check if the atom is carbon and adjacent to nitrogen
                     if atom.GetSymbol() == "C" and any([neighbor.GetSymbol() == "N" for neighbor in atom.GetNeighbors()]):
                         fixed_atom_ids.append(atom_id)

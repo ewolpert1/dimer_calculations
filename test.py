@@ -1,6 +1,7 @@
 
 import stk
 from dimer_calc.Optimiser_functions import *
+from dimer_calc.cage import *
 
 
 
@@ -39,10 +40,7 @@ list_of_windows =Axes.RemoveCommon(molecule,facet_axes, list_of_arenes)
 
 window_size=arene_size
 
-print(list_of_windows[0])
-
-list_of_dimers = [
-    DimerGenerator.generate(molecule,
+list_of_dimers = DimerGenerator.generate(molecule,
         list_of_windows[0],
         -list_of_windows[0],
         displacement_distance=window_size,
@@ -51,19 +49,25 @@ list_of_dimers = [
         rotation_limit=120,
         rotation_step_size=30,
         slide=False,
-        ),
-]
+        )
 
-print(list_of_dimers[0][0]['Dimer'])
-#
-#for i in range(len(list_of_dimers[0][0][0])):
-#stk.MolWriter().write(
-#    molecule=list_of_dimers[0][0]['Dimer'],
-#    path='test.mol'
-#)
-#
+#print(list_of_dimers[1])
+#print(list_of_dimers[0][0]['Dimer'])
 
-fixed_atom_set = CageOperations.fix_atom_set(molecule, diamine_smile, metal_atom=metal_atom)
+fixed_atom_set = CageOperations.fix_atom_set(list_of_dimers[0]['Dimer'],utils.remove_aldehyde('NCCN'), metal_atom=None)
+
+for dimer_entry in list_of_dimers:
+    print(dimer_entry['Dimer'])
+
+    #gulp_optimizer = GulpDimerOptimizer(gulp_path=GULP_PATH)
+#    gulp_optimizer=DimerOptimizer.optimise_dimer_gulp(dimer_entry['Dimer'],f"gulp_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",GULP_PATH,fixed_atom_set)
+    #gulp_optimizer=DimerOptimizer.optimise_dimer_gulp(dimer_entry['Dimer'],f"gulp_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",GULP_PATH,fixed_atom_set)
+    #OPLS_optimizer=DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)
+    XTB_optimizer=DimerOptimizer.optimise_dimer_XTB(dimer_entry['Dimer'],f"XTB_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",XTB_PATH,fixed_atom_set)
+
+
+
+
 
 #
 #    for dimer in list_o_dimers:
