@@ -10,6 +10,8 @@ maintainers = [
 dependencies = [
   "stk",
   "stko",
+  "pywindowx",
+  "PoreMapper",
 ]
 requires-python = ">=3.11"
 dynamic = ["version"]
@@ -30,15 +32,15 @@ dev = [
 ]
 
 [project.urls]
-github = "https://github.com/andrewtarzia/pore-topology-design"
+github = "https://github.com/ewolpert1/dimer_calculations"
 
 [tool.setuptools_scm]
-write_to = "src/pore_optimisation/_version.py"
+write_to = "dimer_calc/_version.py"
 
 [tool.setuptools.packages.find]
 where = [
   # list of folders that contain the packages (["."] by default)
-  "src",
+  "dimer_calc",
 ]
 
 [tool.ruff]
@@ -66,11 +68,11 @@ strict_optional = true
 [[tool.mypy.overrides]]
 module = [
   'rdkit.*',
-  'cgexplore.*',
-  'bbprep.*',
-  'openmm.*',
   'stk.*',
-  'pandas.*',
-  'atomlite.*',
+  'pore_mapper.*',
+  'pywindow.*',
+  'scipy.*',
+  'sklearn.*',
+  'networkx.*',
 ]
 ignore_missing_imports = true
