@@ -2,8 +2,7 @@ import gzip
 import re
 from collections import deque
 
-import rdkit.Chem.AllChem as rdkit
-from rdkit import Chem
+import rdkit.Chem.AllChem as rdkit  # noqa: N813
 from rdkit.Geometry import Point3D
 
 bond_dict = {
@@ -222,11 +221,9 @@ def mol_from_mae_file(Cagename, destination_folder_end, mae_end):
             line = [word for word in line if word != '"']
             if len(labels) != len(line):
                 raise RuntimeError(
-
-                        "Number of labels does"
-                        " not match number of columns"
-                        " in .mae file."
-
+                    "Number of labels does"
+                    " not match number of columns"
+                    " in .mae file."
                 )
 
             for label, data in zip(labels, line, strict=False):
@@ -259,11 +256,9 @@ def mol_from_mae_file(Cagename, destination_folder_end, mae_end):
         for line in data_block:
             if len(labels) != len(line):
                 raise RuntimeError(
-
-                        "Number of labels does"
-                        " not match number of "
-                        "columns in .mae file."
-
+                    "Number of labels does"
+                    " not match number of "
+                    "columns in .mae file."
                 )
 
             for label, data in zip(labels, line, strict=False):
@@ -378,5 +373,5 @@ def write_out_mol(Cagename, destination_folder_end, mols_dict, filtered_names):
         if name in filtered_names:
             iter = iter + 1
             with open(f"{destination_folder}/{name}.mol", "w+") as f:
-                print(Chem.MolToMolBlock(mol), file=f)
+                print(rdkit.MolToMolBlock(mol), file=f)
     return iter

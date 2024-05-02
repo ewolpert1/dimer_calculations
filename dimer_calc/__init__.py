@@ -1,0 +1,1 @@
+"""Dimer calculation module."""

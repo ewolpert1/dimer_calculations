@@ -1,3 +1,6 @@
+"""Module for optimiser functions."""
+
+import logging
 import os
 import shutil
 import uuid
@@ -13,12 +16,13 @@ from stko._internal.optimizers.utilities import (
     move_generated_macromodel_files,
 )
 
-from . import config, utils
-from .pores import *
-
-GULP_PATH = config.GULP_PATH
-SCHRODINGER_PATH = config.SCHRODINGER_PATH
-XTB_PATH = config.XTB_PATH
+from .utils import (
+    calculate_perpendicular_vector,
+    check_overlaps,
+    create_rotated_guest,
+    find_integer_points,
+    generate_rotated_vectors,
+)
 
 
 class DimerGenerator:
@@ -57,15 +61,15 @@ class DimerGenerator:
         guest_cage = cage.with_rotation_between_vectors(
             second_cage_orientation, axes, origin
         )
-        rotated_vectors = utils.generate_rotated_vectors(
+        rotated_vectors = generate_rotated_vectors(
             axes, rotation_limit / rotation_step_size, 30
         )
-        perpendicular_vector = utils.calculate_perpendicular_vector(axes)
+        perpendicular_vector = calculate_perpendicular_vector(axes)
 
         dimer_list = []
         for i in range(int(displacement / displacement_step_size)):
             if slide:
-                displaced_centers = utils.find_integer_points(
+                displaced_centers = find_integer_points(
                     axes,
                     displacement_distance * 2 - 2 + i,
                     int(displacement_distance) + 1,
@@ -79,7 +83,7 @@ class DimerGenerator:
             for center in displaced_centers:
                 rot_by = 0
                 for vector in rotated_vectors:
-                    rotated_guest = utils.create_rotated_guest(
+                    rotated_guest = create_rotated_guest(
                         guest_cage, perpendicular_vector, vector, center
                     )
                     dimer = stk.ConstructedMolecule(
@@ -88,7 +92,7 @@ class DimerGenerator:
                         )
                     )
                     mol = dimer.to_rdkit_mol()
-                    overlaps = utils.check_overlaps(mol, overlap_tolerance)
+                    overlaps = check_overlaps(mol, overlap_tolerance)
 
                     if overlaps:
                         rot_by = rot_by + 1
@@ -403,7 +407,7 @@ class XTBDimer(stko.XTB):
         return mol
 
 
-class GulPDimer(stko.GulpUFFOptimizer):
+class GulpDimer(stko.GulpUFFOptimizer):
     def __init__(
         self,
         gulp_path: str,

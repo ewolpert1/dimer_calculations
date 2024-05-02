@@ -1,3 +1,5 @@
+"""Pores module."""
+
 import pore_mapper as pm
 
 

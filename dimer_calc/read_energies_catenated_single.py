@@ -1,3 +1,5 @@
+"""Read energies module."""
+
 import glob
 import os
 import re
@@ -6,19 +8,17 @@ import subprocess
 
 import stk
 
-from . import config, utils
-from .dimer_centroids import *
-from .pores import *
+from .config import SCHRODINGER_PATH
+from .dimer_centroids import return_centroids
+from .pores import check_catenane, one_pore, two_pores
+from .utils import generate_com_content
 
 
 def find_last_segment_in_folder(folder_name):
     parts = folder_name.split("_")
     if len(parts) >= 3:
         return f"{parts[-1]}"
-    ret
-
-
-SCHRODINGER_PATH = config.SCHRODINGER_PATH
+    return None
 
 
 class OPLSEnergyReader:
@@ -41,7 +41,7 @@ class OPLSEnergyReader:
         os.chdir(self.current_directory)
         if not os.path.exists(self.destination_folder):
             os.makedirs(self.destination_folder)
-        new_content = utils.generate_com_content(fix_atoms=None)
+        new_content = generate_com_content(fix_atoms=None)
         file_path = os.path.join(self.destination_folder, "no_constraints.com")
         with open(file_path, "w") as file:
             file.writelines("\n".join(new_content))
@@ -120,7 +120,9 @@ class OPLSEnergyReader:
 
             if not catenated:
                 if reference_energy is None:
-                    reference_energy = energy  # Set the first uncatenated structure's energy as the reference
+                    # Set the first uncatenated structure's energy as the
+                    # reference
+                    reference_energy = energy
                 elif energy - reference_energy > 30:
                     break
                 # selected_structures.append((energy, structure_name))

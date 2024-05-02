@@ -5,7 +5,7 @@ import stk
 from dimer_calc.axes import by_midpoint, by_smiles, remove_common
 from dimer_calc.cage import CageOperations
 from dimer_calc.config import XTB_PATH
-from dimer_calc.Optimiser_functions import DimerGenerator, DimerOptimizer
+from dimer_calc.optimiser_functions import DimerGenerator, DimerOptimizer
 from dimer_calc.utils import remove_aldehyde
 
 filename = "cages/G_17.mol"

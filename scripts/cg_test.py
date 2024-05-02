@@ -13,7 +13,7 @@ from dimer_calc.axes import (
     by_midpoint_square,
     by_smiles,
 )
-from dimer_calc.Optimiser_functions import DimerGenerator
+from dimer_calc.optimiser_functions import DimerGenerator
 
 
 def get_openmm_energy(

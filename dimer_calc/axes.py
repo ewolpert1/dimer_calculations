@@ -9,7 +9,8 @@ import rdkit.Chem.AllChem as rdkit  # noqa: N813
 import stk
 from scipy.spatial.distance import pdist
 from sklearn.metrics.pairwise import cosine_similarity
-from utils import distance, normalize_vector
+
+from .utils import distance, normalize_vector
 
 
 def by_pywindow(filename: pathlib.Path | str) -> np.ndarray:

@@ -5,8 +5,8 @@ import itertools
 import numpy as np
 import rdkit.Chem.AllChem as rdkit  # noqa: N813
 import stk
-from rdkit import Chem
-from utils import (
+
+from .utils import (
     calculate_perpendicular_vector,
     create_rotated_guest,
     distance,
@@ -295,7 +295,7 @@ class CageOperations:
 
         """
         # Use the SMILES string of the diamine to identify its structure
-        diamine = Chem.MolFromSmiles(diamine_smiles)
+        diamine = rdkit.MolFromSmiles(diamine_smiles)
         rdkit_mol = self.cage.to_rdkit_mol()
 
         # Get the substructure matches for the diamine
