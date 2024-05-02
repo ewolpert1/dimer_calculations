@@ -38,6 +38,7 @@ def get_openmm_energy(
 
 
 def main() -> None:
+    raise SystemExit("delete me")
     working_dir = pathlib.Path(
         "/home/atarzia/workingspace/pore_topology_optimisation/"
     )

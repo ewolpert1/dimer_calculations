@@ -1,6 +1,7 @@
 import stk
-from dimer_calc.Optimiser_functions import *
+
 from dimer_calc.cage import *
+from dimer_calc.Optimiser_functions import *
 
 
 class Dimer:
