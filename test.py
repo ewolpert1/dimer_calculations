@@ -4,19 +4,11 @@ from dimer_calc.Optimiser_functions import *
 from dimer_calc.cage import *
 
 
-
-#cages_folder_path = config.CAGES_FOLDER_PATH
-#SCHRODINGER_PATH=config.SCHRODINGER_PATH
-#GULP_PATH = config.GULP_PATH
-#XTB_PATH = config.XTB_PATH
-
 class Dimer:
     molecule: stk.Molecule
 
 
-#def main():
 filename='cages/G_17.mol'
-#filename_xyz='cages/G_17.xyz'
 molecule=stk.BuildingBlock.init_from_file(filename)
 
 '''
@@ -97,9 +89,6 @@ list_of_dimers = DimerGenerator.generate(molecule,
         slide=False,
         )
 
-#print(list_of_dimers[1])
-#print(list_of_dimers[0][0]['Dimer'])
-
 """
 
 If you want to constrain the atom positions this function will return the atom positions of the cage you want to fix. It constrains the smiles string unless metal_atom is not none.
@@ -130,57 +119,7 @@ This is what you'll need to add your own CGOptimiser or something to. You can do
 
 
 for dimer_entry in list_of_dimers:
-    #print(dimer_entry['Dimer'])
 
     #gulp_optimizer=DimerOptimizer.optimise_dimer_gulp(dimer_entry['Dimer'],f"gulp_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",GULP_PATH,fixed_atom_set)
     #OPLS_optimizer=DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)
     XTB_optimizer=DimerOptimizer.optimise_dimer_XTB(dimer_entry['Dimer'],f"XTB_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",XTB_PATH,fixed_atom_set)
-
-
-
-
-
-#
-#    for dimer in list_o_dimers:
-#        # Optimise.
-#        opt_molecule = stko.Somehting/dimers.optimiser(settings).optimize(dimer.molecule)
-#        # Energy.
-#        get the energy somehow.
-#
-
-    # Table of energy vs. dimer-position?
-
-
-#if __name__ == '__main__':
-#    main()
-#
-#
-##Creates the structures
-#for filename in os.listdir('cages'):
-#    if (filename.endswith('G_17.mol')):
-#        cage_path = os.path.join('cages', filename)
-#        cage = stk.BuildingBlock.init_from_file(cage_path)
-#        gulp_optimizer = GulpDimerOptimizer(gulp_path=GULP_PATH)
-#        #xtb_optimizer = XTBDimerOptimizer(xtb_path=XTB_PATH)
-#        #xtb_optimizer.run_a_cage(filename[:-4], cage, utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'), utils.remove_aldehyde('NCCN'))
-#        #OPLS_optimizer = OPLSDimerOptimizer(SCHRODINGER_PATH=SCHRODINGER_PATH)
-#        gulp_optimizer.run_a_cage(filename[:-4], cage, utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'), utils.remove_aldehyde('NCCN'))
-#        #OPLS_optimizer.run_a_cage(filename[:-4], cage, utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'), utils.remove_aldehyde('NCCN'))
-#
-#        #run_a_cage(filename[:-4], cage, utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'), utils.remove_aldehyde('NCCN'))
-#
-#        #print('Dimers made now starting to convert files and run calculations...')
-##
-#        #utils.run_a_cage_script(filename[:-4])
-##
-#        #current_dir = os.getcwd()
-#        #cage_number=f'Cage{filename[:-4]}'
-#        #energy_reader = XTBEnergyReader(cage_name_xtb=f'{cage_number}_xtb',
-#        #                         cage_name=cage_number,
-#        #                         current_directory=f"{current_dir}",
-#        #                         destination_folder_end="lowest_dimers_xtb")
-#        #minimum_energy = energy_reader.read_energy()
-#
-#        #run_calc(current_dir,cage_number,"lowest_dimers")
-
-
