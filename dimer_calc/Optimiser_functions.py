@@ -1,25 +1,20 @@
 import os
+import shutil
+import uuid
+from itertools import combinations
+from uuid import uuid4
+
+import numpy as np
 import stk
 import stko
-from . import utils
-from . import config
-from .pores import *
-from scipy.spatial.distance import pdist
-import uuid
-from uuid import uuid4
-import numpy as np
-import pywindow as pw
-import shutil
-from itertools import combinations
 from stko._internal.optimizers.utilities import (
     get_metal_atoms,
-)
-import rdkit.Chem.AllChem as rdkit
-from sklearn.metrics.pairwise import cosine_similarity
-from stko._internal.optimizers.utilities import (
     mol_from_mae_file,
     move_generated_macromodel_files,
 )
+
+from . import config, utils
+from .pores import *
 
 GULP_PATH = config.GULP_PATH
 SCHRODINGER_PATH = config.SCHRODINGER_PATH
@@ -68,7 +63,7 @@ class DimerGenerator:
         perpendicular_vector = utils.calculate_perpendicular_vector(axes)
 
         dimer_list = []
-        for i in range(0, int(displacement / displacement_step_size)):
+        for i in range(int(displacement / displacement_step_size)):
             if slide:
                 displaced_centers = utils.find_integer_points(
                     axes,
@@ -77,7 +72,9 @@ class DimerGenerator:
                 )
                 print(slide)
             else:
-                displaced_centers = [(displacement_distance * 2 - 2 + i) * axes]
+                displaced_centers = [
+                    (displacement_distance * 2 - 2 + i) * axes
+                ]
             slide_up = 0
             for center in displaced_centers:
                 rot_by = 0
@@ -140,9 +137,10 @@ class OPLSDimer(stko.MacroModelForceField):
         )
         self._fixed_atom_set = fixed_atom_set
 
-    def _generate_com(self, mol: stk.Molecule, run_name: str, fixed_atom_set) -> None:
-        """
-        Create a ``.com`` file for a MacroModel optimization.
+    def _generate_com(
+        self, mol: stk.Molecule, run_name: str, fixed_atom_set
+    ) -> None:
+        """Create a ``.com`` file for a MacroModel optimization.
 
         The created ``.com`` file fixes all bond parameters which were
         not added by :meth:`~.Topology.construct`. This means all bond
@@ -153,8 +151,8 @@ class OPLSDimer(stko.MacroModelForceField):
         This fixing is implemented by creating a ``.com`` file with
         various "FX" commands written within its body.
 
-        Parameters:
-
+        Parameters
+        ----------
             mol:
                 The molecule which is to be optimized.
 
@@ -163,7 +161,6 @@ class OPLSDimer(stko.MacroModelForceField):
                 have this name.
 
         """
-
         # logger.debug(f'Creating .com file for "{mol}".')
 
         # This is the body of the ``.com`` file. The line that begins
@@ -239,7 +236,9 @@ class OPLSDimer(stko.MacroModelForceField):
         # Get the ``.maegz`` optimization output to a ``.mae``.
         self._convert_maegz_to_mae(run_name)
         rdkit_opt_mol = mol_from_mae_file(mae_path)
-        mol = mol.with_position_matrix(rdkit_opt_mol.GetConformer().GetPositions())
+        mol = mol.with_position_matrix(
+            rdkit_opt_mol.GetConformer().GetPositions()
+        )
         move_generated_macromodel_files(run_name, output_dir)
         return mol
 
@@ -287,11 +286,13 @@ class XTBDimer(stko.XTB):
         if fix_atoms:
             combinations_list = combinations(fix_atoms, 2)
             formatted_combinations = [
-                "    distance: {}, {}, auto".format(x, y) for x, y in combinations_list
+                f"    distance: {x}, {y}, auto" for x, y in combinations_list
             ]
 
             # Constructing the new content with $constrain at the start and $end at the end
-            new_content = "$constrain\n" + "\n".join(formatted_combinations) + "\n$end"
+            new_content = (
+                "$constrain\n" + "\n".join(formatted_combinations) + "\n$end"
+            )
         else:
             new_content = None
         return new_content
@@ -311,16 +312,15 @@ class XTBDimer(stko.XTB):
         mol: stk.Molecule,
         fixed_atom_set,
     ) -> tuple[stk.Molecule, bool]:
-        """
-        Run loop of optimizations on `mol` using xTB.
+        """Run loop of optimizations on `mol` using xTB.
 
-        Parameters:
-
+        Parameters
+        ----------
             mol:
                 The molecule to be optimized.
 
-        Returns:
-
+        Returns
+        -------
             mol:
                 The optimized molecule.
 
@@ -329,7 +329,6 @@ class XTBDimer(stko.XTB):
                 ``False`` if the calculation is incomplete.
 
         """
-
         for run in range(self._max_runs):
             xyz = f"input_structure_{run+1}.xyz"
             out_file = f"optimization_{run+1}.output"
@@ -362,21 +361,19 @@ class XTBDimer(stko.XTB):
         return mol, opt_complete
 
     def optimize(self, mol: stk.Molecule, fixed_atom_set) -> stk.Molecule:
-        """
-        Optimize `mol`.
+        """Optimize `mol`.
 
-        Parameters:
-
+        Parameters
+        ----------
             mol:
                 The molecule to be optimized.
 
-        Returns:
-
+        Returns
+        -------
             mol:
                 The optimized molecule.
 
         """
-
         # Remove mol from self.incomplete if present.
         if mol in self.incomplete:
             self.incomplete.remove(mol)
@@ -532,13 +529,11 @@ class DimerOptimizer:
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, "gulp_opt.ginout")
         if os.path.exists(output_file):
-            with open(output_file, "r") as file:
+            with open(output_file) as file:
                 lines = file.readlines()
                 # Check if the last non-empty line starts with the specified pattern
                 for last_line in lines[::-1]:
-                    if (
-                        last_line.strip()
-                    ):  # This ensures we skip any empty lines at the end of the file
+                    if last_line.strip():  # This ensures we skip any empty lines at the end of the file
                         break
 
                 if last_line.startswith("  Job Finished at "):
@@ -557,7 +552,9 @@ class DimerOptimizer:
         structure = gulp_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f"{output_dir}_opt.mol")
 
-    def optimise_dimer_OPLS(dimer, output_dir, SCHRODINGER_PATH, fixed_atom_set=None):
+    def optimise_dimer_OPLS(
+        dimer, output_dir, SCHRODINGER_PATH, fixed_atom_set=None
+    ):
         os.makedirs(output_dir, exist_ok=True)
         # output_file = os.path.join(output_dir, "gulp_opt.ginout")
         # if os.path.exists(output_file):
