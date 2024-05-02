@@ -1,4 +1,4 @@
-"""TEst CG model."""
+"""Test CG model."""
 
 import pathlib
 
@@ -8,7 +8,12 @@ import matplotlib.pyplot as plt
 import openmm
 import stk
 
-from dimer_calc.Optimiser_functions import Axes, DimerGenerator
+from dimer_calc.axes import (
+    by_midpoint_mindistance,
+    by_midpoint_square,
+    by_smiles,
+)
+from dimer_calc.Optimiser_functions import DimerGenerator
 
 
 def get_openmm_energy(
@@ -135,39 +140,33 @@ def main() -> None:
 
         # Determine topology dependant vectors of interest.
         if tstr == "6P12":
-            ag_vectors, ag_size = Axes.BySmiles(
+            ag_vectors, ag_size = by_smiles(
                 molecule,
                 smiles_string="[Ag]",
             )
-            hexagon_vectors, hexagon_mean_distance = (
-                Axes.ByMidpoint_mindistance(
-                    molecule,
-                    vectors=ag_vectors,
-                    vertice_size=ag_size,
-                    no_vectors_define_facet=3,
-                    tolerance=0.1,
-                )
+            hexagon_vectors, hexagon_mean_distance = by_midpoint_mindistance(
+                vectors=ag_vectors,
+                vertice_size=ag_size,
+                no_vectors_define_facet=3,
+                tolerance=0.1,
             )
-            square_vectors, square_mean_distance = Axes.BySmiles(
+            square_vectors, square_mean_distance = by_smiles(
                 molecule,
                 smiles_string="[Pd]",
             )
         elif tstr == "8P12":
-            ag_vectors, ag_size = Axes.BySmiles(
+            ag_vectors, ag_size = by_smiles(
                 molecule,
                 smiles_string="[Ag]",
             )
-            hexagon_vectors, hexagon_mean_distance = (
-                Axes.Square_ByMidpoint_mindistance(
-                    molecule,
-                    vectors=ag_vectors,
-                    vertice_size=ag_size,
-                    no_vectors_define_facet=4,
-                    tolerance=0.1,
-                )
+            hexagon_vectors, hexagon_mean_distance = by_midpoint_square(
+                vectors=ag_vectors,
+                vertice_size=ag_size,
+                no_vectors_define_facet=4,
+                tolerance=0.1,
             )
 
-            square_vectors, square_mean_distance = Axes.BySmiles(
+            square_vectors, square_mean_distance = by_smiles(
                 molecule,
                 smiles_string="C",
             )
