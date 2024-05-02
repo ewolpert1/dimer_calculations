@@ -1,18 +1,18 @@
-# utils.py
+"""Utilities module."""
+
 import os
-from rdkit import Chem
+import subprocess
+
 import numpy as np
 import stk
+from rdkit import Chem
 from rdkit.Chem import rdMolTransforms
-import subprocess
 
 
 def load_matching_file(file_path):
-    """
-    Load and create a dictionary from a matching file.
-    """
+    """Load and create a dictionary from a matching file."""
     mapping = {}
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
         for line in file:
             parts = line.strip().split()
             if len(parts) == 2:
@@ -20,38 +20,31 @@ def load_matching_file(file_path):
     return mapping
 
 
-def remove_aldehyde(smiles_string):
-    """
-    Given a trialdehyde smiles string, return the smiles string without aldehydes.
-    """
+def remove_aldehyde(smiles_string: str) -> str:
+    """Get the smiles string with aldehydes removed."""
     molecule = Chem.MolFromSmiles(smiles_string)
     aldehyde_smarts = "[C;H1](=O)"
     aldehyde_pattern = Chem.MolFromSmarts(aldehyde_smarts)
     updated_molecule = Chem.DeleteSubstructs(molecule, aldehyde_pattern)
-    updated_smiles = Chem.MolToSmiles(updated_molecule, isomericSmiles=True)
-    return updated_smiles
+    return Chem.MolToSmiles(updated_molecule, isomericSmiles=True)
 
 
-def normalize_vector(vector):
-    """
-    Normalize a vector.
-
-    Parameters:
-    - vector: A vector.
-
-    Returns:
-    - A normalized vector.
-    """
+def normalize_vector(vector: np.ndarray) -> np.ndarray:
+    """Normalize a vector."""
     return vector / np.linalg.norm(vector)
 
 
 def generate_com_content(fix_atoms):
-    """
-    Generate the content of a .com file used for minimization, including fixed atoms.
+    """Generate the content of a .com file used for minimization, including fixed atoms.
+
     Args:
+    ----
     - fix_atoms: List of atom indices to be fixed.
+
     Returns:
+    -------
     - A list of strings, each representing a line in the .com file.
+
     """
     header = [
         "merged.mae",
@@ -83,16 +76,18 @@ def generate_com_content(fix_atoms):
 
 
 def rotate_vector(v, axis, angle):
-    """
-    Rotate a vector around an axis by a given angle.
+    """Rotate a vector around an axis by a given angle.
 
-    Parameters:
+    Parameters
+    ----------
     - v: Vector to be rotated.
     - axis: Axis of rotation.
     - angle: Angle of rotation in radians.
 
-    Returns:
+    Returns
+    -------
     - Rotated vector.
+
     """
     axis = normalize_vector(axis)
     cos_angle = np.cos(angle)
@@ -120,31 +115,35 @@ def rotate_vector(v, axis, angle):
 
 
 def displace_vector(vector, distance):
-    """
-    Calculate a displacement vector along the given vector's direction with specified distance.
+    """Calculate a displacement vector along the given vector's direction with specified distance.
 
-    Parameters:
+    Parameters
+    ----------
     - vector: Direction vector for displacement.
     - distance: Magnitude of displacement.
 
-    Returns:
+    Returns
+    -------
     - Displacement vector.
+
     """
     normalized_vector = normalize_vector(vector)
     return normalized_vector * distance
 
 
 def find_integer_points(vector, dist, radius):
-    """
-    Find integer points within a circle defined along a vector.
+    """Find integer points within a circle defined along a vector.
 
-    Parameters:
+    Parameters
+    ----------
     - vector: Direction vector.
     - dist: Distance from the origin to the center of the circle.
     - radius: Radius of the circle.
 
-    Returns:
+    Returns
+    -------
     - A list of integer points within the circle.
+
     """
     unit_vector = normalize_vector(vector)
     center = dist * unit_vector
@@ -154,21 +153,27 @@ def find_integer_points(vector, dist, radius):
     for x in range(-radius, radius + 1, int(radius / 2)):
         for y in range(-radius, radius + 1, int(radius / 2)):
             if np.linalg.norm([x, y]) <= radius:
-                point3D = center + x * orthogonal_vectors[0] + y * orthogonal_vectors[1]
+                point3D = (
+                    center
+                    + x * orthogonal_vectors[0]
+                    + y * orthogonal_vectors[1]
+                )
                 integer_points.append(point3D)
 
     return integer_points
 
 
 def find_orthogonal_vectors(vector):
-    """
-    Find two orthogonal unit vectors perpendicular to a given vector.
+    """Find two orthogonal unit vectors perpendicular to a given vector.
 
-    Parameters:
+    Parameters
+    ----------
     - vector: The vector to find orthogonal vectors for.
 
-    Returns:
+    Returns
+    -------
     - A tuple of two orthogonal unit vectors.
+
     """
     if vector[0] == 0 and vector[1] == 0:
         v1 = np.array([1, 0, 0])
@@ -184,14 +189,16 @@ def find_orthogonal_vectors(vector):
 
 
 def calculate_perpendicular_vector(vector):
-    """
-    Calculate a vector perpendicular to the given vector.
+    """Calculate a vector perpendicular to the given vector.
 
-    Parameters:
+    Parameters
+    ----------
     - vector: A 2D or 3D vector.
 
-    Returns:
+    Returns
+    -------
     - A vector perpendicular to the input vector.
+
     """
     if len(vector) == 2:  # Two-dimensional case
         return np.array([-vector[1], vector[0]])
@@ -202,18 +209,22 @@ def calculate_perpendicular_vector(vector):
         raise ValueError("The input vector must be 2D or 3D.")
 
 
-def create_rotated_guest(guest_building_block, start_vector, end_vector, displacement):
-    """
-    Create a rotated and displaced guest molecule from a building block.
+def create_rotated_guest(
+    guest_building_block, start_vector, end_vector, displacement
+):
+    """Create a rotated and displaced guest molecule from a building block.
 
-    Parameters:
+    Parameters
+    ----------
     - guest_building_block: Building block from which the guest is created.
     - start_vector: Start vector for rotation.
     - end_vector: End vector for rotation.
     - displacement: Displacement vector from the building block.
 
-    Returns:
+    Returns
+    -------
     - A guest molecule with specified rotation and displacement.
+
     """
     return stk.host_guest.Guest(
         building_block=guest_building_block,
@@ -250,21 +261,24 @@ def closest_point_on_segment(point, segment_start, segment_end):
 
 
 def generate_rotated_vectors(base_vector, num_steps, angle_interval):
-    """
-    Generate a set of vectors rotated around the base vector.
+    """Generate a set of vectors rotated around the base vector.
 
-    Parameters:
+    Parameters
+    ----------
     - base_vector: The base vector around which the rotations will be performed.
     - num_steps: Number of vectors to generate.
     - angle_interval: Angle interval between each vector in degrees.
 
-    Returns:
+    Returns
+    -------
     - An array of rotated vectors.
+
     """
     base_vector = normalize_vector(base_vector)
     perpendicular_vector = calculate_perpendicular_vector(base_vector)
     perpendicular_vector = normalize_vector(
-        perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector
+        perpendicular_vector
+        - np.dot(perpendicular_vector, base_vector) * base_vector
     )
     axis = base_vector
     angle_interval = np.radians(angle_interval)
@@ -287,22 +301,24 @@ def create_folders_and_return_paths(parent_folder, suffixes):
 
 
 def run_a_cage_script(cage_number):
-    """
-    Executes the run_a_cage.sh script for the specified cage number.
+    """Executes the run_a_cage.sh script for the specified cage number.
 
     Args:
+    ----
     - cage_number: The specific cage number, used to construct the target directory path.
-    """
 
+    """
     # Construct the target directory path
     current_dir = os.getcwd()
     target_directory = os.path.join(current_dir, f"Cage{cage_number}_mae")
 
     # Path to the run_a_cage.sh script
-    script_path = os.path.join(target_directory, "run_a_cage.sh")  # Adjust as necessary
+    script_path = os.path.join(
+        target_directory, "run_a_cage.sh"
+    )  # Adjust as necessary
 
     # Ensure the script is executable
-    subprocess.run(["chmod", "+x", script_path])
+    subprocess.run(["chmod", "+x", script_path], check=False)
 
     # Set the CAGE_DIRECTORY environment variable to the target directory
     env = os.environ.copy()
@@ -317,21 +333,24 @@ def run_a_cage_script(cage_number):
 
 
 def generate_rotated_vectors(base_vector, num_steps, angle_interval):
-    """
-    Generate a set of vectors rotated around the base vector.
+    """Generate a set of vectors rotated around the base vector.
 
-    Parameters:
+    Parameters
+    ----------
     - base_vector: The base vector around which the rotations will be performed.
     - num_steps: Number of vectors to generate.
     - angle_interval: Angle interval between each vector in degrees.
 
-    Returns:
+    Returns
+    -------
     - An array of rotated vectors.
+
     """
     base_vector = normalize_vector(base_vector)
     perpendicular_vector = calculate_perpendicular_vector(base_vector)
     perpendicular_vector = normalize_vector(
-        perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector
+        perpendicular_vector
+        - np.dot(perpendicular_vector, base_vector) * base_vector
     )
     axis = base_vector
     angle_interval = np.radians(angle_interval)
@@ -342,10 +361,10 @@ def generate_rotated_vectors(base_vector, num_steps, angle_interval):
 
 
 def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot, dis):
-    """
-    Save a given molecule to a .mol file with a specific naming convention.
+    """Save a given molecule to a .mol file with a specific naming convention.
 
-    Parameters:
+    Parameters
+    ----------
     - molecule: The stk molecule to be saved.
     - num: Identifier for the cage.
     - mode: The packing mode (e.g., 'wa', 'ww', 'aa').
@@ -353,6 +372,7 @@ def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot, dis):
     - rot: Rotation identifier.
 
     Example output file path: 'Cage100/Cage100_wa/Cage_100_1_1_wa.mol'
+
     """
     stk.MolWriter().write(
         molecule=molecule,
@@ -362,14 +382,16 @@ def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot, dis):
 
 # %%
 def mol_to_smiles(filepath):
-    """
-    Converts a .mol file to a SMILES string.
+    """Converts a .mol file to a SMILES string.
 
     Args:
+    ----
     - filepath: Path to the .mol file.
 
     Returns:
+    -------
     - A SMILES string representation of the molecule.
+
     """
     mol = Chem.MolFromMolFile(filepath)
     return Chem.MolToSmiles(mol)
@@ -402,16 +424,18 @@ def closest_point_on_segment(point, segment_start, segment_end):
 
 
 def check_overlaps(mol, threshold=0.2):
-    """
-    Check for overlaps between atoms in a molecule.
+    """Check for overlaps between atoms in a molecule.
 
     Args:
+    ----
     - mol (rdkit.Chem.Mol): The molecule to check.
     - threshold (float): Distance threshold for overlap detection.
 
     Returns:
+    -------
     - overlaps (list): List of tuples with overlapping atom indices and their
     distance.
+
     """
     overlaps = []
 
