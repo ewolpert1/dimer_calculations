@@ -4,8 +4,10 @@ import stko
 from . import utils
 from . import config
 from .pores import *
+from scipy.spatial.distance import pdist
 import uuid
 from uuid import uuid4
+import numpy as np
 import pywindow as pw
 import shutil
 from itertools import combinations
@@ -20,53 +22,80 @@ from stko._internal.optimizers.utilities import (
 )
 
 GULP_PATH = config.GULP_PATH
-SCHRODINGER_PATH=config.SCHRODINGER_PATH
+SCHRODINGER_PATH = config.SCHRODINGER_PATH
 XTB_PATH = config.XTB_PATH
 
+
 class Axes:
-    def ByPywindow(self,filename): #This doesnt work, not sure I understand pywindow
+    def ByPywindow(self, filename):
+        # This doesnt work, not sure I understand pywindow
         molsys = pw.MolecularSystem.load_file(filename)
         mol = molsys.system_to_molecule()
-        windows=mol.calculate_windows()
-        com=mol.calculate_centre_of_mass()
+        windows = mol.calculate_windows()
+        com = mol.calculate_centre_of_mass()
         adjusted_windows = windows - com
         return adjusted_windows
-        #print("Performing ByPywindow calculation or operation.")
-        #return "Result of ByPywindow"
-    def BySmarts(self,smarts_string):
+        # print("Performing ByPywindow calculation or operation.")
+        # return "Result of ByPywindow"
+
+    def BySmarts(self, smarts_string):
         print("Performing BySmarts calculation or operation.")
         return "Result of BySmarts"
         rdkit_mol = self.to_rdkit_mol()
         rdkit.SanitizeMol(rdkit_mol)
-        centroid_smiles = [self.get_centroid(atom_ids=atom_ids) for atom_ids in rdkit_mol.GetSubstructMatches(query=rdkit.MolFromSmarts(smarts_string))]
+        centroid_smiles = [
+            self.get_centroid(atom_ids=atom_ids)
+            for atom_ids in rdkit_mol.GetSubstructMatches(
+                query=rdkit.MolFromSmarts(smarts_string)
+            )
+        ]
         centroid_smiles = np.asarray(centroid_smiles)
         centroid_mol = self.get_centroid()
         distances = [np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles]
-        vectors = np.array([(smile - centroid_mol) / np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles])
-        return vectors,np.mean(distances)
-    def BySmiles(self, smiles_string):
+        vectors = np.array(
+            [
+                (smile - centroid_mol) / np.linalg.norm(smile - centroid_mol)
+                for smile in centroid_smiles
+            ]
+        )
+        return vectors, np.mean(distances)
 
+    def BySmiles(self, smiles_string):
         print("Performing BySmiles calculation or operation.")
 
         rdkit_mol = self.to_rdkit_mol()
         rdkit.SanitizeMol(rdkit_mol)
-        centroid_smiles = [self.get_centroid(atom_ids=atom_ids) for atom_ids in rdkit_mol.GetSubstructMatches(query=rdkit.MolFromSmiles(smiles_string))]
+        centroid_smiles = [
+            self.get_centroid(atom_ids=atom_ids)
+            for atom_ids in rdkit_mol.GetSubstructMatches(
+                query=rdkit.MolFromSmiles(smiles_string)
+            )
+        ]
         centroid_smiles = np.asarray(centroid_smiles)
         centroid_mol = self.get_centroid()
         distances = [np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles]
-        vectors = np.array([(smile - centroid_mol) / np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles])
-        return vectors,np.mean(distances)
+        vectors = np.array(
+            [
+                (smile - centroid_mol) / np.linalg.norm(smile - centroid_mol)
+                for smile in centroid_smiles
+            ]
+        )
+        return vectors, np.mean(distances)
 
-    def ByMidpoint(self,vectors,vertice_size,no_vectors_define_facet, tolerance=0.1):
-        #if isinstance(vectors, np.ndarray):
+    def ByMidpoint(self, vectors, vertice_size, no_vectors_define_facet, tolerance=0.1):
+        # if isinstance(vectors, np.ndarray):
         #    vectors = [vectors[i] for i in range(vectors.shape[0])]
-        #print()
+        # print()
         if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
-            vectors = vectors[0]  # Assuming the first element is the NumPy array with all vectors
+            vectors = vectors[
+                0
+            ]  # Assuming the first element is the NumPy array with all vectors
 
-    # Convert numpy array of vectors into a list of numpy arrays
+        # Convert numpy array of vectors into a list of numpy arrays
         vectors_list = [vectors[i] for i in range(vectors.shape[0])]
-        all_distances = [utils.distance(v1, v2) for v1, v2 in combinations(vectors_list, 2)]
+        all_distances = [
+            utils.distance(v1, v2) for v1, v2 in combinations(vectors_list, 2)
+        ]
         min_distance = min(filter(lambda d: d > 0, all_distances))
 
         midpoints = []  # List to store all midpoints that meet the condition
@@ -74,23 +103,104 @@ class Axes:
 
         # Check each combination of n vectors
         for combination in combinations(vectors_list, no_vectors_define_facet):
-            distances = [utils.distance(combination[i], combination[(i + 1) % no_vectors_define_facet]) for i in range(no_vectors_define_facet)]
+            distances = [
+                utils.distance(
+                    combination[i], combination[(i + 1) % no_vectors_define_facet]
+                )
+                for i in range(no_vectors_define_facet)
+            ]
             if max(distances) - min(distances) <= tolerance * min_distance:
                 midpoint = np.mean(combination, axis=0)
                 midpoint_size.append(np.linalg.norm(midpoint))
-                midpoint=utils.normalize_vector(midpoint)
+                midpoint = utils.normalize_vector(midpoint)
                 midpoints.append(midpoint)  # Add the computed midpoint to the list
 
-        return np.array(midpoints),np.mean(midpoint_size)*vertice_size
+        return np.array(midpoints), np.mean(midpoint_size) * vertice_size
 
-    def RemoveCommon(self,arr1, arr2,tolerance=0.1):
+    def ByMidpoint_mindistance(
+        self,
+        vectors,
+        vertice_size,
+        no_vectors_define_facet,
+        tolerance=0.1,
+    ):
+        """Fixed the MidPoint function to properly get the min_distance."""
+        if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
+            vectors = vectors[0]
 
-        filtered_arr1=[]
+        # Convert numpy array of vectors into a list of numpy arrays
+        vectors_list = [vectors[i] for i in range(vectors.shape[0])]
+        all_distances = [
+            utils.distance(v1, v2) for v1, v2 in combinations(vectors_list, 2)
+        ]
+        min_distance = min(filter(lambda d: d > 0, all_distances))
+
+        midpoints = []  # List to store all midpoints that meet the condition
+        midpoint_size = []  # List to store all midpoints that meet the condition
+
+        # Check each combination of n vectors
+        for combination in combinations(vectors_list, no_vectors_define_facet):
+            distances = [
+                utils.distance(
+                    combination[i], combination[(i + 1) % no_vectors_define_facet]
+                )
+                for i in range(no_vectors_define_facet)
+            ]
+            if np.isclose(max(distances), min(distances), atol=tolerance, rtol=0):
+                if np.isclose(max(distances), min_distance, atol=tolerance, rtol=0):
+                    midpoint = np.mean(combination, axis=0)
+                    midpoint_size.append(np.linalg.norm(midpoint))
+                    midpoint = utils.normalize_vector(midpoint)
+                    midpoints.append(midpoint)  # Add the computed midpoint to the list
+
+        return np.array(midpoints), np.mean(midpoint_size) * vertice_size
+
+    def Square_ByMidpoint_mindistance(
+        self,
+        vectors,
+        vertice_size,
+        no_vectors_define_facet,
+        tolerance=0.1,
+    ):
+        """MidPoint function that find squares."""
+        if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
+            vectors = vectors[0]
+
+        # Convert numpy array of vectors into a list of numpy arrays
+        vectors_list = [vectors[i] for i in range(vectors.shape[0])]
+        all_distances = [
+            utils.distance(v1, v2) for v1, v2 in combinations(vectors_list, 2)
+        ]
+        min_distance = min(filter(lambda d: d > 0, all_distances))
+
+        midpoints = []  # List to store all midpoints that meet the condition
+        midpoint_size = []  # List to store all midpoints that meet the condition
+
+        # Check each combination of n vectors
+        for combination in combinations(vectors_list, no_vectors_define_facet):
+            distances = sorted(pdist(combination))
+            min_found_distance = min(distances)
+            max_found_distance = max(distances)
+            if np.isclose(min_found_distance, min_distance, atol=tolerance, rtol=0):
+                if np.allclose(
+                    [max_found_distance], distances[4:], atol=tolerance, rtol=0
+                ) and np.allclose(
+                    [min_found_distance], distances[:4], atol=tolerance, rtol=0
+                ):
+                    midpoint = np.mean(combination, axis=0)
+                    midpoint_size.append(np.linalg.norm(midpoint))
+                    midpoint = utils.normalize_vector(midpoint)
+                    midpoints.append(midpoint)  # Add the computed midpoint to the list
+
+        return np.array(midpoints), np.mean(midpoint_size) * vertice_size
+
+    def RemoveCommon(self, arr1, arr2, tolerance=0.1):
+        filtered_arr1 = []
         for vec1 in arr1:
             diff = True
             for i, vec2 in enumerate(arr2):
                 similarity = cosine_similarity([vec1], [vec2])[0][0]
-                if similarity > (1-tolerance):
+                if similarity > (1 - tolerance):
                     diff = False
                     break
             if diff:
@@ -100,7 +210,6 @@ class Axes:
 
 
 class DimerGenerator:
-
     def __init__(
         self,
         axes: np.ndarray,
@@ -119,7 +228,8 @@ class DimerGenerator:
         self._overlap_tolerance = overlap_tolerance
         self._slide = slide
 
-    def generate(self,
+    def generate(
+        self,
         axes: np.ndarray,
         second_cage_orientation: np.ndarray,
         displacement_distance: float,
@@ -128,48 +238,62 @@ class DimerGenerator:
         rotation_limit: float = 120,
         rotation_step_size: float = 30,
         overlap_tolerance: float = 0.2,
-        slide: bool = False):
-
+        slide: bool = False,
+    ):
         cage = stk.BuildingBlock.init_from_molecule(self)
         origin = cage.get_centroid()
-        guest_cage=cage.with_rotation_between_vectors(second_cage_orientation,axes, origin)
-        rotated_vectors=utils.generate_rotated_vectors(axes, rotation_limit/rotation_step_size, 30)
-        perpendicular_vector=utils.calculate_perpendicular_vector(axes)
+        guest_cage = cage.with_rotation_between_vectors(
+            second_cage_orientation, axes, origin
+        )
+        rotated_vectors = utils.generate_rotated_vectors(
+            axes, rotation_limit / rotation_step_size, 30
+        )
+        perpendicular_vector = utils.calculate_perpendicular_vector(axes)
 
         dimer_list = []
-        for i in range(0, int(displacement/displacement_step_size)):
+        for i in range(0, int(displacement / displacement_step_size)):
             if slide:
-                displaced_centers=utils.find_integer_points(axes, displacement_distance*2-2+i, int(displacement_distance) + 1)
+                displaced_centers = utils.find_integer_points(
+                    axes,
+                    displacement_distance * 2 - 2 + i,
+                    int(displacement_distance) + 1,
+                )
                 print(slide)
             else:
-                displaced_centers= [(displacement_distance*2-2+i)*axes]
-            slide_up=0
+                displaced_centers = [(displacement_distance * 2 - 2 + i) * axes]
+            slide_up = 0
             for center in displaced_centers:
-                rot_by=0
+                rot_by = 0
                 for vector in rotated_vectors:
-                    rotated_guest = utils.create_rotated_guest(guest_cage,perpendicular_vector,vector,center)
+                    rotated_guest = utils.create_rotated_guest(
+                        guest_cage, perpendicular_vector, vector, center
+                    )
                     dimer = stk.ConstructedMolecule(
-                        topology_graph=stk.host_guest.Complex(host=self, guests=rotated_guest)
+                        topology_graph=stk.host_guest.Complex(
+                            host=self, guests=rotated_guest
+                        )
                     )
                     mol = dimer.to_rdkit_mol()
-                    overlaps = utils.check_overlaps(mol,overlap_tolerance)
+                    overlaps = utils.check_overlaps(mol, overlap_tolerance)
+
                     if overlaps:
-                        rot_by=rot_by+1
+                        rot_by = rot_by + 1
                         continue
-                    dimer_list.append({
-                        'Displacement shell':(2-2+i),
-                        'Slide': slide_up,
-                        'Rotation': rot_by*rotation_step_size,
-                        'Displacement centroid': center,
-                        'Dimer': dimer
-                    })
-                    #dimer_list.append(dimer_entry)
-                    rot_by=rot_by+1
-                slide_up=slide_up+1
+                    dimer_list.append(
+                        {
+                            "Displacement shell": (2 - 2 + i),
+                            "Slide": slide_up,
+                            "Rotation": rot_by * rotation_step_size,
+                            "Displacement centroid": center,
+                            "Dimer": dimer,
+                        }
+                    )
+                    # dimer_list.append(dimer_entry)
+                    rot_by = rot_by + 1
+                slide_up = slide_up + 1
         return dimer_list
 
-        #def test_overlap
-
+        # def test_overlap
 
 
 class OPLSDimer(stko.MacroModelForceField):
@@ -184,10 +308,10 @@ class OPLSDimer(stko.MacroModelForceField):
         minimum_gradient: float = 0.05,
         fixed_atom_set: list[int] | None = None,
     ) -> None:
-        #self._check_params(
+        # self._check_params(
         #    minimum_gradient=minimum_gradient,
         #    maximum_iterations=maximum_iterations,
-        #)
+        # )
 
         super().__init__(
             macromodel_path=macromodel_path,
@@ -199,7 +323,7 @@ class OPLSDimer(stko.MacroModelForceField):
         )
         self._fixed_atom_set = fixed_atom_set
 
-    def _generate_com(self, mol: stk.Molecule, run_name: str,fixed_atom_set) -> None:
+    def _generate_com(self, mol: stk.Molecule, run_name: str, fixed_atom_set) -> None:
         """
         Create a ``.com`` file for a MacroModel optimization.
 
@@ -223,7 +347,7 @@ class OPLSDimer(stko.MacroModelForceField):
 
         """
 
-        #logger.debug(f'Creating .com file for "{mol}".')
+        # logger.debug(f'Creating .com file for "{mol}".')
 
         # This is the body of the ``.com`` file. The line that begins
         # and ends with exclamation lines is replaced with the various
@@ -248,7 +372,7 @@ class OPLSDimer(stko.MacroModelForceField):
         )
 
         # If `restricted` is ``False`` do not add a fix block.
-        if fixed_atom_set==None:
+        if fixed_atom_set == None:
             com_block = com_block.replace(
                 "!!!BLOCK_OF_FIXED_PARAMETERS_COMES_HERE!!!\n", ""
             )
@@ -257,14 +381,14 @@ class OPLSDimer(stko.MacroModelForceField):
             # and angles into com_block.
             fix_block = ""
             for atom in fixed_atom_set:
-                args = ("FXAT",atom,0,0, 0, 100, 0, 0, 0)
+                args = ("FXAT", atom, 0, 0, 0, 100, 0, 0, 0)
                 fix_block += self._get_com_line(*args)
                 fix_block += "\n"
-            #fix_block = [
-            #f" FXAT     {atom:>3}      0      0      0   100.0000     0.0000     0.0000     0.0000" for atom in fixed_atom_set
-            #]
+            # fix_block = [
+            # f" FXAT     {atom:>3}      0      0      0   100.0000     0.0000     0.0000     0.0000" for atom in fixed_atom_set
+            # ]
             com_block = com_block.replace(
-            "!!!BLOCK_OF_FIXED_PARAMETERS_COMES_HERE!!!\n", fix_block
+                "!!!BLOCK_OF_FIXED_PARAMETERS_COMES_HERE!!!\n", fix_block
             )
 
         # Writes the .com file.
@@ -278,7 +402,7 @@ class OPLSDimer(stko.MacroModelForceField):
             # Next is the body of the .com file.
             com.write(com_block)
 
-    def optimize(self, mol: stk.Molecule,fixed_atom_set) -> stk.Molecule:
+    def optimize(self, mol: stk.Molecule, fixed_atom_set) -> stk.Molecule:
         run_name = str(uuid4().int)
         if self._output_dir is None:
             output_dir = run_name
@@ -292,20 +416,18 @@ class OPLSDimer(stko.MacroModelForceField):
         # MacroModel requires a ``.mae`` file as input.
         self._run_structconvert(mol_path, mae_path)
         # generate the ``.com`` file for the MacroModel run.
-        self._generate_com(mol, run_name,fixed_atom_set)
+        self._generate_com(mol, run_name, fixed_atom_set)
         # Run the optimization.
         self._run_bmin(mol, run_name)
         # Get the ``.maegz`` optimization output to a ``.mae``.
         self._convert_maegz_to_mae(run_name)
         rdkit_opt_mol = mol_from_mae_file(mae_path)
-        mol = mol.with_position_matrix(
-            rdkit_opt_mol.GetConformer().GetPositions()
-        )
+        mol = mol.with_position_matrix(rdkit_opt_mol.GetConformer().GetPositions())
         move_generated_macromodel_files(run_name, output_dir)
         return mol
 
-class XTBDimer(stko.XTB):
 
+class XTBDimer(stko.XTB):
     incomplete: set[stk.Molecule]
 
     def __init__(
@@ -326,7 +448,6 @@ class XTBDimer(stko.XTB):
         unlimited_memory: bool = False,
         fixed_atom_set: list[int] | None = None,
     ) -> None:
-
         super().__init__(
             xtb_path=xtb_path,
             gfn_version=gfn_version,
@@ -345,18 +466,20 @@ class XTBDimer(stko.XTB):
         )
         self._fixed_atom_set = fixed_atom_set
 
-    def generate_constraint_file(self,fix_atoms):
+    def generate_constraint_file(self, fix_atoms):
         if fix_atoms:
             combinations_list = combinations(fix_atoms, 2)
-            formatted_combinations = ["    distance: {}, {}, auto".format(x, y) for x, y in     combinations_list]
+            formatted_combinations = [
+                "    distance: {}, {}, auto".format(x, y) for x, y in combinations_list
+            ]
 
-        # Constructing the new content with $constrain at the start and $end at the end
+            # Constructing the new content with $constrain at the start and $end at the end
             new_content = "$constrain\n" + "\n".join(formatted_combinations) + "\n$end"
         else:
             new_content = None
         return new_content
 
-    def _write_detailed_control(self,fixed_atom_set) -> None:
+    def _write_detailed_control(self, fixed_atom_set) -> None:
         new_content = self.generate_constraint_file(fixed_atom_set)
         string = f"$gbsa\n   gbsagrid={self._solvent_grid}"
 
@@ -421,8 +544,7 @@ class XTBDimer(stko.XTB):
 
         return mol, opt_complete
 
-
-    def optimize(self, mol: stk.Molecule,fixed_atom_set) -> stk.Molecule:
+    def optimize(self, mol: stk.Molecule, fixed_atom_set) -> stk.Molecule:
         """
         Optimize `mol`.
 
@@ -456,7 +578,7 @@ class XTBDimer(stko.XTB):
         os.chdir(output_dir)
 
         try:
-            mol, complete = self._run_optimizations(mol,fixed_atom_set)
+            mol, complete = self._run_optimizations(mol, fixed_atom_set)
         finally:
             os.chdir(init_dir)
 
@@ -467,10 +589,7 @@ class XTBDimer(stko.XTB):
         return mol
 
 
-
-
 class GulPDimer(stko.GulpUFFOptimizer):
-
     def __init__(
         self,
         gulp_path: str,
@@ -481,11 +600,17 @@ class GulPDimer(stko.GulpUFFOptimizer):
         output_dir: str | None = None,
         fixed_atom_set: list[int] | None = None,
     ):
-        super().__init__(gulp_path=gulp_path, output_dir=output_dir, metal_FF=metal_FF,
-                         conjugate_gradient=conjugate_gradient, maxcyc=maxcyc,metal_ligand_bond_order=metal_ligand_bond_order)
+        super().__init__(
+            gulp_path=gulp_path,
+            output_dir=output_dir,
+            metal_FF=metal_FF,
+            conjugate_gradient=conjugate_gradient,
+            maxcyc=maxcyc,
+            metal_ligand_bond_order=metal_ligand_bond_order,
+        )
         self._fixed_atom_set = fixed_atom_set
 
-    def optimize(self, mol: stk.Molecule,fixed_atom_set=None) -> stk.Molecule:
+    def optimize(self, mol: stk.Molecule, fixed_atom_set=None) -> stk.Molecule:
         if self._output_dir is None:
             output_dir = str(uuid.uuid4().int)
         else:
@@ -523,7 +648,6 @@ class GulPDimer(stko.GulpUFFOptimizer):
         finally:
             os.chdir(init_dir)
 
-
         return mol
 
     def _constrain_section(self, fixed_atom_set) -> str:
@@ -532,6 +656,7 @@ class GulPDimer(stko.GulpUFFOptimizer):
             constrain_section += f"fix_atom {constrain}\n"
 
         return constrain_section
+
     def _write_gulp_file(
         self,
         mol: stk.Molecule,
@@ -590,11 +715,13 @@ class DimerOptimizer:
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, "gulp_opt.ginout")
         if os.path.exists(output_file):
-            with open(output_file, 'r') as file:
+            with open(output_file, "r") as file:
                 lines = file.readlines()
                 # Check if the last non-empty line starts with the specified pattern
                 for last_line in lines[::-1]:
-                    if last_line.strip():  # This ensures we skip any empty lines at the end of the file
+                    if (
+                        last_line.strip()
+                    ):  # This ensures we skip any empty lines at the end of the file
                         break
 
                 if last_line.startswith("  Job Finished at "):
@@ -604,26 +731,26 @@ class DimerOptimizer:
         gulp_opt = GulpDimer(
             gulp_path=gulp_path,
             output_dir=output_dir,  # Change to correct path for Tmp files
-            #metal_FF={45: 'Rh6+3'},
+            # metal_FF={45: 'Rh6+3'},
             conjugate_gradient=True,
             maxcyc=500,
             fixed_atom_set=fixed_atom_set,
         )
         gulp_opt.assign_FF(dimer)
         structure = gulp_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
-        structure.write(f'{output_dir}_opt.mol')
+        structure.write(f"{output_dir}_opt.mol")
 
     def optimise_dimer_OPLS(dimer, output_dir, SCHRODINGER_PATH, fixed_atom_set=None):
         os.makedirs(output_dir, exist_ok=True)
-        #output_file = os.path.join(output_dir, "gulp_opt.ginout")
-        #if os.path.exists(output_file):
+        # output_file = os.path.join(output_dir, "gulp_opt.ginout")
+        # if os.path.exists(output_file):
         #    with open(output_file, 'r') as file:
         #        lines = file.readlines()
         #        # Check if the last non-empty line starts with the specified pattern
         #        for last_line in lines[::-1]:
         #            if last_line.strip():  # This ensures we skip any empty lines at the end of #the file
         #                break
-#
+        #
         #        if last_line.startswith("  Job Finished at "):
         #            print(f"Skipping dimer {output_dir} as it is already done")
         #            return
@@ -631,14 +758,14 @@ class DimerOptimizer:
         OPLS_opt = OPLSDimer(
             macromodel_path=SCHRODINGER_PATH,
             output_dir=output_dir,  # Change to correct path for Tmp files
-            #metal_FF={45: 'Rh6+3'},
-            #conjugate_gradient=True,
-            #maxcyc=500,
+            # metal_FF={45: 'Rh6+3'},
+            # conjugate_gradient=True,
+            # maxcyc=500,
             fixed_atom_set=fixed_atom_set,
         )
-        #OPLS_opt.assign_FF(dimer)
+        # OPLS_opt.assign_FF(dimer)
         structure = OPLS_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
-        structure.write(f'{output_dir}_opt.mol')
+        structure.write(f"{output_dir}_opt.mol")
 
     def optimise_dimer_XTB(dimer, output_dir, XTB_PATH, fixed_atom_set=None):
         os.makedirs(output_dir, exist_ok=True)
@@ -647,16 +774,14 @@ class DimerOptimizer:
             xtb_path=XTB_PATH,
             output_dir=output_dir,  # Change to correct path for Tmp files
             unlimited_memory=True,
-            opt_level='crude',
+            opt_level="crude",
             max_runs=1,
             calculate_hessian=True,
             fixed_atom_set=fixed_atom_set,
         )
-        #OPLS_opt.assign_FF(dimer)
+        # OPLS_opt.assign_FF(dimer)
         structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
-        structure.write(f'{output_dir}_opt.mol')
-
+        structure.write(f"{output_dir}_opt.mol")
 
 
 # %%
-

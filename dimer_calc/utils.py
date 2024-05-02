@@ -12,23 +12,25 @@ def load_matching_file(file_path):
     Load and create a dictionary from a matching file.
     """
     mapping = {}
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         for line in file:
             parts = line.strip().split()
             if len(parts) == 2:
                 mapping[parts[0]] = parts[1]
     return mapping
 
+
 def remove_aldehyde(smiles_string):
     """
     Given a trialdehyde smiles string, return the smiles string without aldehydes.
     """
     molecule = Chem.MolFromSmiles(smiles_string)
-    aldehyde_smarts = '[C;H1](=O)'
+    aldehyde_smarts = "[C;H1](=O)"
     aldehyde_pattern = Chem.MolFromSmarts(aldehyde_smarts)
     updated_molecule = Chem.DeleteSubstructs(molecule, aldehyde_pattern)
     updated_smiles = Chem.MolToSmiles(updated_molecule, isomericSmiles=True)
     return updated_smiles
+
 
 def normalize_vector(vector):
     """
@@ -41,6 +43,7 @@ def normalize_vector(vector):
     - A normalized vector.
     """
     return vector / np.linalg.norm(vector)
+
 
 def generate_com_content(fix_atoms):
     """
@@ -65,17 +68,19 @@ def generate_com_content(fix_atoms):
     footer = [
         " CONV       2      0      0      0     0.0500     0.0000     0.0000     0.0000",
         " MINI       1      0   2500      0     0.0000     0.0000     0.0000     0.0000",
-        " END        0      0      0      0     0.0000     0.0000     0.0000     0.0000"
+        " END        0      0      0      0     0.0000     0.0000     0.0000     0.0000",
     ]
     # Combine header, fxat lines for fixed atoms, and footer
     if fix_atoms:
         fxat_lines = [
-            f" FXAT     {atom:>3}      0      0      0   100.0000     0.0000     0.0000     0.0000" for atom in fix_atoms
+            f" FXAT     {atom:>3}      0      0      0   100.0000     0.0000     0.0000     0.0000"
+            for atom in fix_atoms
         ]
         com_content = header + fxat_lines + footer
     else:
         com_content = header + footer
     return com_content
+
 
 def rotate_vector(v, axis, angle):
     """
@@ -92,18 +97,27 @@ def rotate_vector(v, axis, angle):
     axis = normalize_vector(axis)
     cos_angle = np.cos(angle)
     sin_angle = np.sin(angle)
-    rotation_matrix = np.array([
-        [cos_angle + axis[0]**2 * (1 - cos_angle),
-         axis[0] * axis[1] * (1 - cos_angle) - axis[2] * sin_angle,
-         axis[0] * axis[2] * (1 - cos_angle) + axis[1] * sin_angle],
-        [axis[1] * axis[0] * (1 - cos_angle) + axis[2] * sin_angle,
-         cos_angle + axis[1]**2 * (1 - cos_angle),
-         axis[1] * axis[2] * (1 - cos_angle) - axis[0] * sin_angle],
-        [axis[2] * axis[0] * (1 - cos_angle) - axis[1] * sin_angle,
-         axis[2] * axis[1] * (1 - cos_angle) + axis[0] * sin_angle,
-         cos_angle + axis[2]**2 * (1 - cos_angle)]
-    ])
+    rotation_matrix = np.array(
+        [
+            [
+                cos_angle + axis[0] ** 2 * (1 - cos_angle),
+                axis[0] * axis[1] * (1 - cos_angle) - axis[2] * sin_angle,
+                axis[0] * axis[2] * (1 - cos_angle) + axis[1] * sin_angle,
+            ],
+            [
+                axis[1] * axis[0] * (1 - cos_angle) + axis[2] * sin_angle,
+                cos_angle + axis[1] ** 2 * (1 - cos_angle),
+                axis[1] * axis[2] * (1 - cos_angle) - axis[0] * sin_angle,
+            ],
+            [
+                axis[2] * axis[0] * (1 - cos_angle) - axis[1] * sin_angle,
+                axis[2] * axis[1] * (1 - cos_angle) + axis[0] * sin_angle,
+                cos_angle + axis[2] ** 2 * (1 - cos_angle),
+            ],
+        ]
+    )
     return np.dot(rotation_matrix, v)
+
 
 def displace_vector(vector, distance):
     """
@@ -118,6 +132,7 @@ def displace_vector(vector, distance):
     """
     normalized_vector = normalize_vector(vector)
     return normalized_vector * distance
+
 
 def find_integer_points(vector, dist, radius):
     """
@@ -144,6 +159,7 @@ def find_integer_points(vector, dist, radius):
 
     return integer_points
 
+
 def find_orthogonal_vectors(vector):
     """
     Find two orthogonal unit vectors perpendicular to a given vector.
@@ -166,6 +182,7 @@ def find_orthogonal_vectors(vector):
 
     return N1, N2
 
+
 def calculate_perpendicular_vector(vector):
     """
     Calculate a vector perpendicular to the given vector.
@@ -184,34 +201,39 @@ def calculate_perpendicular_vector(vector):
     else:
         raise ValueError("The input vector must be 2D or 3D.")
 
+
 def create_rotated_guest(guest_building_block, start_vector, end_vector, displacement):
-        """
-        Create a rotated and displaced guest molecule from a building block.
+    """
+    Create a rotated and displaced guest molecule from a building block.
 
-        Parameters:
-        - guest_building_block: Building block from which the guest is created.
-        - start_vector: Start vector for rotation.
-        - end_vector: End vector for rotation.
-        - displacement: Displacement vector from the building block.
+    Parameters:
+    - guest_building_block: Building block from which the guest is created.
+    - start_vector: Start vector for rotation.
+    - end_vector: End vector for rotation.
+    - displacement: Displacement vector from the building block.
 
-        Returns:
-        - A guest molecule with specified rotation and displacement.
-        """
-        return stk.host_guest.Guest(
-            building_block=guest_building_block,
-            start_vector=start_vector,
-            end_vector=end_vector,
-            displacement=displacement,
-        )
+    Returns:
+    - A guest molecule with specified rotation and displacement.
+    """
+    return stk.host_guest.Guest(
+        building_block=guest_building_block,
+        start_vector=start_vector,
+        end_vector=end_vector,
+        displacement=displacement,
+    )
+
+
 def midpoint(conf, idx1, idx2):
     """Calculate the midpoint of two atoms."""
     pos1 = np.array(conf.GetAtomPosition(idx1))
     pos2 = np.array(conf.GetAtomPosition(idx2))
     return (pos1 + pos2) / 2
 
+
 def distance(point1, point2):
     """Calculate the distance between two points."""
     return np.linalg.norm(point1 - point2)
+
 
 def closest_point_on_segment(point, segment_start, segment_end):
     """Find the closest point on the line segment to the given point."""
@@ -241,11 +263,16 @@ def generate_rotated_vectors(base_vector, num_steps, angle_interval):
     """
     base_vector = normalize_vector(base_vector)
     perpendicular_vector = calculate_perpendicular_vector(base_vector)
-    perpendicular_vector = normalize_vector(perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector)
+    perpendicular_vector = normalize_vector(
+        perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector
+    )
     axis = base_vector
     angle_interval = np.radians(angle_interval)
     angles = np.arange(num_steps) * angle_interval
-    return np.array([rotate_vector(perpendicular_vector, axis, angle) for angle in angles])
+    return np.array(
+        [rotate_vector(perpendicular_vector, axis, angle) for angle in angles]
+    )
+
 
 def create_folders_and_return_paths(parent_folder, suffixes):
     folder_paths = []  # Initialize a list to store the paths of the new folders
@@ -257,6 +284,7 @@ def create_folders_and_return_paths(parent_folder, suffixes):
         # Append the new folder path to the list
         folder_paths.append(new_folder_path)
     return folder_paths
+
 
 def run_a_cage_script(cage_number):
     """
@@ -278,7 +306,7 @@ def run_a_cage_script(cage_number):
 
     # Set the CAGE_DIRECTORY environment variable to the target directory
     env = os.environ.copy()
-    env['CAGE_DIRECTORY'] = target_directory
+    env["CAGE_DIRECTORY"] = target_directory
 
     # Execute the shell script
     try:
@@ -286,6 +314,7 @@ def run_a_cage_script(cage_number):
         print(f"Successfully executed run_a_cage.sh for {cage_number}")
     except subprocess.CalledProcessError as e:
         print(f"Error running run_a_cage.sh for {cage_number}: {e}")
+
 
 def generate_rotated_vectors(base_vector, num_steps, angle_interval):
     """
@@ -301,13 +330,18 @@ def generate_rotated_vectors(base_vector, num_steps, angle_interval):
     """
     base_vector = normalize_vector(base_vector)
     perpendicular_vector = calculate_perpendicular_vector(base_vector)
-    perpendicular_vector = normalize_vector(perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector)
+    perpendicular_vector = normalize_vector(
+        perpendicular_vector - np.dot(perpendicular_vector, base_vector) * base_vector
+    )
     axis = base_vector
     angle_interval = np.radians(angle_interval)
     angles = np.arange(num_steps) * angle_interval
-    return np.array([rotate_vector(perpendicular_vector, axis, angle) for angle in angles])
+    return np.array(
+        [rotate_vector(perpendicular_vector, axis, angle) for angle in angles]
+    )
 
-def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot,dis):
+
+def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot, dis):
     """
     Save a given molecule to a .mol file with a specific naming convention.
 
@@ -322,8 +356,9 @@ def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot,dis):
     """
     stk.MolWriter().write(
         molecule=molecule,
-        path=f'Cage{num}/Cage{num}_{mode}/Cage_{num}_{dis_cent}_{rot}_{dis}_{mode}.mol'
+        path=f"Cage{num}/Cage{num}_{mode}/Cage_{num}_{dis_cent}_{rot}_{dis}_{mode}.mol",
     )
+
 
 # %%
 def mol_to_smiles(filepath):
@@ -339,15 +374,18 @@ def mol_to_smiles(filepath):
     mol = Chem.MolFromMolFile(filepath)
     return Chem.MolToSmiles(mol)
 
+
 def midpoint(conf, idx1, idx2):
     """Calculate the midpoint of two atoms."""
     pos1 = np.array(conf.GetAtomPosition(idx1))
     pos2 = np.array(conf.GetAtomPosition(idx2))
     return (pos1 + pos2) / 2
 
+
 def distance(point1, point2):
     """Calculate the distance between two points."""
     return np.linalg.norm(point1 - point2)
+
 
 def closest_point_on_segment(point, segment_start, segment_end):
     """Find the closest point on the line segment to the given point."""
@@ -362,6 +400,7 @@ def closest_point_on_segment(point, segment_start, segment_end):
         return segment_end
     return segment_start + projection_length * seg_unit_vec
 
+
 def check_overlaps(mol, threshold=0.2):
     """
     Check for overlaps between atoms in a molecule.
@@ -371,7 +410,8 @@ def check_overlaps(mol, threshold=0.2):
     - threshold (float): Distance threshold for overlap detection.
 
     Returns:
-    - overlaps (list): List of tuples with overlapping atom indices and their distance.
+    - overlaps (list): List of tuples with overlapping atom indices and their
+    distance.
     """
     overlaps = []
 
@@ -381,16 +421,14 @@ def check_overlaps(mol, threshold=0.2):
         if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:
             continue
 
-        for j in range(i+1, mol.GetNumAtoms()):
+        for j in range(i + 1, mol.GetNumAtoms()):
             # Skip hydrogen atoms
             if mol.GetAtomWithIdx(j).GetAtomicNum() == 1:
                 continue
 
             dist = rdMolTransforms.GetBondLength(conf, i, j)
-            if dist < 1-threshold:
+            if dist < 1 - threshold:
                 overlaps.append((i, j, dist))
                 break  # Remove this break if you want to find all overlaps for each atom
 
-
     return overlaps
-
