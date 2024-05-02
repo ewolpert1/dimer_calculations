@@ -40,7 +40,7 @@ write_to = "dimer_calc/_version.py"
 [tool.setuptools.packages.find]
 where = [
   # list of folders that contain the packages (["."] by default)
-  "dimer_calc",
+  ".",
 ]
 
 [tool.ruff]
