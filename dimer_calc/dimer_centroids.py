@@ -1,18 +1,28 @@
+"""Dimer centroids module."""
+
+import logging
+import pathlib
 import re
 
 import networkx as nx
+import numpy as np
+import stk
+import stko
 
 
-def parse_atom_and_bond_data(data):
-    """Parses the .mol file data and extracts atom coordinates and bond information.
+def parse_atom_and_bond_data(data: list[str]) -> tuple:
+    """Parse .mol file data and extract atom coordinates and bond information.
 
-    Args:
-    ----
-    data (list of str): Lines from the .mol file.
+    Arguments:
+    ---------
+        data (list of str):
+            Lines from the .mol file.
 
     Returns:
     -------
-    tuple: List of (x, y, z) coordinates for each atom, List of (atom1, atom2) bonds.
+        tuple:
+            List of (x, y, z) coordinates for each atom, List of
+            (atom1, atom2) bonds.
 
     """
     atom_data = []
@@ -23,13 +33,13 @@ def parse_atom_and_bond_data(data):
         if "M  V30 BEGIN ATOM" in line:
             atom_section = True
             continue
-        elif "M  V30 END ATOM" in line:
+        if "M  V30 END ATOM" in line:
             atom_section = False
             continue
-        elif "M  V30 BEGIN BOND" in line:
+        if "M  V30 BEGIN BOND" in line:
             bond_section = True
             continue
-        elif "M  V30 END BOND" in line:
+        if "M  V30 END BOND" in line:
             break
 
         if atom_section:
@@ -53,8 +63,8 @@ def parse_atom_and_bond_data(data):
     return atom_data, bond_data
 
 
-def calculate_centroid(atoms):
-    """Calculates the centroid of a group of atoms.
+def calculate_centroid(atoms: list[tuple]) -> tuple:
+    """Calculate the centroid of a group of atoms.
 
     Args:
     ----
@@ -74,8 +84,8 @@ def calculate_centroid(atoms):
     return (x_sum / count, y_sum / count, z_sum / count)
 
 
-def separate_molecules(atom_data, bond_data):
-    """Separates the molecules based on bond data and returns the atoms in each molecule.
+def separate_molecules(atom_data: list, bond_data: list) -> list:
+    """Separate the molecules on bond data and return the atoms in each.
 
     Args:
     ----
@@ -84,23 +94,22 @@ def separate_molecules(atom_data, bond_data):
 
     Returns:
     -------
-    list of lists: Each sublist contains the (x, y, z) coordinates of atoms in one molecule.
+    list of lists: Each sublist contains the (x, y, z) coordinates of atoms in
+    one molecule.
 
     """
-    G = nx.Graph()
-    G.add_edges_from(bond_data)
+    graph = nx.Graph()
+    graph.add_edges_from(bond_data)
 
     # Creating a mapping from atom index to coordinates
     atom_dict = dict(atom_data)
 
     molecules = []
-    for component in nx.connected_components(G):
-        # print(component, len(component),len(atom_dict),atom_dict[2])
-        # molecule = [atom_dict[i] for i in component]
+    for component in nx.connected_components(graph):
         molecule = []
         for i in component:
             if atom_dict.get(i) is None:
-                print(f"Key {i} not found in atom_dict")
+                logging.info(f"Key {i} not found in atom_dict")
             else:
                 molecule.append(atom_dict[i])
         molecules.append(molecule)
@@ -108,20 +117,47 @@ def separate_molecules(atom_data, bond_data):
     return molecules
 
 
-def return_centroids(mol_file):
+def return_centroids(mol_file: str | pathlib.Path) -> list[np.ndarray]:
+    """Get centroids of mol file."""
     # Read the .mol file
-    with open(mol_file) as file:
-        mol_data = file.readlines()
+    with pathlib.Path(mol_file).open() as f:
+        mol_data = f.readlines()
 
     # Parsing atom and bond data
     atom_data, bond_data = parse_atom_and_bond_data(mol_data)
-    # print(atom_data)
-    # print(bond_data)
 
     # Separating the molecules
     molecules = separate_molecules(atom_data, bond_data)
 
     # Calculating centroids for each molecule
-    centroids = [calculate_centroid(molecule) for molecule in molecules]
+    return [calculate_centroid(molecule) for molecule in molecules]
 
+
+def get_dimer_centroids(
+    dimer_molecule: stk.Molecule,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Get centroids of dimers."""
+    graph = stko.Network.init_from_molecule(dimer_molecule)
+
+    # A series of graphs still connected.
+    connected_graphs = graph.get_connected_components()
+
+    centroids = []
+    for cg in connected_graphs:
+        # Get atoms from nodes.
+        atoms = list(cg)
+        atom_ids = tuple(i.get_id() for i in atoms)
+
+        position_matrix = np.array(
+            tuple(
+                i
+                for i in dimer_molecule.get_atomic_positions(atom_ids=atom_ids)
+            )
+        )
+
+        centroid = np.divide(
+            position_matrix.sum(axis=0),
+            len(atom_ids),
+        )
+        centroids.append(centroid)
     return centroids
