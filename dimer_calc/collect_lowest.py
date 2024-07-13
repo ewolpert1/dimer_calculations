@@ -1,3 +1,5 @@
+"""Module for collecting lowest energy structure."""
+
 import gzip
 import re
 from collections import deque
