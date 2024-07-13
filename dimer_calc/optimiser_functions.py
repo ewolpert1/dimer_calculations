@@ -26,16 +26,19 @@ from .utils import (
 
 
 class DimerGenerator:
-    def __init__(
+    """Class to generate dimers."""
+
+    def __init__(  # noqa: PLR0913
         self,
         axes: np.ndarray,
         displacement: float = 7,
         displacement_step_size: float = 1,
         rotation_limit: float = 120,
         rotation_step_size: float = 30,
-        overlap_tolerance: float = 0.1,
+        overlap_tolerance: float = 0.2,
         slide: bool = False,
-    ):
+    ) -> None:
+        """Initialise class."""
         self._axes = axes
         self._displacement = displacement
         self._displacement_step_size = displacement_step_size
@@ -46,39 +49,35 @@ class DimerGenerator:
 
     def generate(
         self,
-        axes: np.ndarray,
+        molecule: stk.Molecule,
         second_cage_orientation: np.ndarray,
         displacement_distance: float,
-        displacement: float = 7,
-        displacement_step_size: float = 1,
-        rotation_limit: float = 120,
-        rotation_step_size: float = 30,
-        overlap_tolerance: float = 0.2,
-        slide: bool = False,
-    ):
-        cage = stk.BuildingBlock.init_from_molecule(self)
+    ) -> list:
+        """Generate list of dimers."""
+        cage = stk.BuildingBlock.init_from_molecule(molecule)
         origin = cage.get_centroid()
         guest_cage = cage.with_rotation_between_vectors(
-            second_cage_orientation, axes, origin
+            second_cage_orientation, self._axes, origin
         )
         rotated_vectors = generate_rotated_vectors(
-            axes, rotation_limit / rotation_step_size, 30
+            self._axes, self._rotation_limit / self._rotation_step_size, 30
         )
-        perpendicular_vector = calculate_perpendicular_vector(axes)
+        perpendicular_vector = calculate_perpendicular_vector(self._axes)
 
         dimer_list = []
-        for i in range(int(displacement / displacement_step_size)):
-            if slide:
+        for i in range(int(self._displacement / self._displacement_step_size)):
+            if self._slide:
                 displaced_centers = find_integer_points(
-                    axes,
+                    self._axes,
                     displacement_distance * 2 - 2 + i,
                     int(displacement_distance) + 1,
                 )
-                print(slide)
+
             else:
                 displaced_centers = [
-                    (displacement_distance * 2 - 2 + i) * axes
+                    (displacement_distance * 2 - 2 + i) * self._axes
                 ]
+
             slide_up = 0
             for center in displaced_centers:
                 rot_by = 0
@@ -88,30 +87,29 @@ class DimerGenerator:
                     )
                     dimer = stk.ConstructedMolecule(
                         topology_graph=stk.host_guest.Complex(
-                            host=self, guests=rotated_guest
+                            host=molecule, guests=rotated_guest
                         )
                     )
                     mol = dimer.to_rdkit_mol()
-                    overlaps = check_overlaps(mol, overlap_tolerance)
+                    overlaps = check_overlaps(mol, self._overlap_tolerance)
 
                     if overlaps:
                         rot_by = rot_by + 1
                         continue
+
                     dimer_list.append(
                         {
                             "Displacement shell": (2 - 2 + i),
                             "Slide": slide_up,
-                            "Rotation": rot_by * rotation_step_size,
+                            "Rotation": rot_by * self._rotation_step_size,
                             "Displacement centroid": center,
                             "Dimer": dimer,
                         }
                     )
-                    # dimer_list.append(dimer_entry)
+
                     rot_by = rot_by + 1
                 slide_up = slide_up + 1
         return dimer_list
-
-        # def test_overlap
 
 
 class OPLSDimer(stko.MacroModelForceField):
@@ -535,9 +533,12 @@ class DimerOptimizer:
         if os.path.exists(output_file):
             with open(output_file) as file:
                 lines = file.readlines()
-                # Check if the last non-empty line starts with the specified pattern
+                # Check if the last non-empty line starts with the specified
+                # pattern.
                 for last_line in lines[::-1]:
-                    if last_line.strip():  # This ensures we skip any empty lines at the end of the file
+                    # This ensures we skip any empty lines at the end of the
+                    # file.
+                    if last_line.strip():
                         break
 
                 if last_line.startswith("  Job Finished at "):
@@ -546,8 +547,7 @@ class DimerOptimizer:
 
         gulp_opt = GulpDimer(
             gulp_path=gulp_path,
-            output_dir=output_dir,  # Change to correct path for Tmp files
-            # metal_FF={45: 'Rh6+3'},
+            output_dir=output_dir,
             conjugate_gradient=True,
             maxcyc=500,
             fixed_atom_set=fixed_atom_set,
@@ -560,28 +560,13 @@ class DimerOptimizer:
         dimer, output_dir, SCHRODINGER_PATH, fixed_atom_set=None
     ):
         os.makedirs(output_dir, exist_ok=True)
-        # output_file = os.path.join(output_dir, "gulp_opt.ginout")
-        # if os.path.exists(output_file):
-        #    with open(output_file, 'r') as file:
-        #        lines = file.readlines()
-        #        # Check if the last non-empty line starts with the specified pattern
-        #        for last_line in lines[::-1]:
-        #            if last_line.strip():  # This ensures we skip any empty lines at the end of #the file
-        #                break
-        #
-        #        if last_line.startswith("  Job Finished at "):
-        #            print(f"Skipping dimer {output_dir} as it is already done")
-        #            return
 
         OPLS_opt = OPLSDimer(
             macromodel_path=SCHRODINGER_PATH,
-            output_dir=output_dir,  # Change to correct path for Tmp files
-            # metal_FF={45: 'Rh6+3'},
-            # conjugate_gradient=True,
-            # maxcyc=500,
+            output_dir=output_dir,
             fixed_atom_set=fixed_atom_set,
         )
-        # OPLS_opt.assign_FF(dimer)
+
         structure = OPLS_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f"{output_dir}_opt.mol")
 
@@ -597,7 +582,7 @@ class DimerOptimizer:
             calculate_hessian=True,
             fixed_atom_set=fixed_atom_set,
         )
-        # OPLS_opt.assign_FF(dimer)
+
         structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f"{output_dir}_opt.mol")
 
