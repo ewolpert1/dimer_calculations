@@ -1,6 +1,7 @@
 """Utilities module."""
 
 import os
+import pathlib
 import subprocess
 
 import numpy as np
@@ -234,13 +235,6 @@ def create_rotated_guest(
     )
 
 
-def midpoint(conf, idx1, idx2):
-    """Calculate the midpoint of two atoms."""
-    pos1 = np.array(conf.GetAtomPosition(idx1))
-    pos2 = np.array(conf.GetAtomPosition(idx2))
-    return (pos1 + pos2) / 2
-
-
 def distance(point1, point2):
     """Calculate the distance between two points."""
     return np.linalg.norm(point1 - point2)
@@ -380,13 +374,12 @@ def write_molecule_to_mol_file(molecule, num, mode, dis_cent, rot, dis):
     )
 
 
-# %%
-def mol_to_smiles(filepath):
-    """Converts a .mol file to a SMILES string.
+def mol_to_smiles(filepath: str | pathlib.Path) -> str:
+    """Convert a .mol file to a SMILES string.
 
-    Args:
-    ----
-    - filepath: Path to the .mol file.
+    Arguments:
+    ---------
+        filepath: Path to the .mol file.
 
     Returns:
     -------
@@ -397,7 +390,7 @@ def mol_to_smiles(filepath):
     return Chem.MolToSmiles(mol)
 
 
-def midpoint(conf, idx1, idx2):
+def midpoint(conf: Chem.Mol, idx1: int, idx2: int) -> np.ndarray:
     """Calculate the midpoint of two atoms."""
     pos1 = np.array(conf.GetAtomPosition(idx1))
     pos2 = np.array(conf.GetAtomPosition(idx2))
@@ -423,18 +416,20 @@ def closest_point_on_segment(point, segment_start, segment_end):
     return segment_start + projection_length * seg_unit_vec
 
 
-def check_overlaps(mol, threshold=0.2):
+def check_overlaps(mol: Chem.Mol, threshold: float = 0.2) -> list[tuple]:
     """Check for overlaps between atoms in a molecule.
 
-    Args:
-    ----
-    - mol (rdkit.Chem.Mol): The molecule to check.
-    - threshold (float): Distance threshold for overlap detection.
+    Arguments:
+    ---------
+        mol (rdkit.Chem.Mol):
+            The molecule to check.
+        threshold (float):
+            Distance threshold for overlap detection.
 
     Returns:
     -------
-    - overlaps (list): List of tuples with overlapping atom indices and their
-    distance.
+        overlaps (list):
+            List of tuples with overlapping atom indices and their distance.
 
     """
     overlaps = []
@@ -451,8 +446,11 @@ def check_overlaps(mol, threshold=0.2):
                 continue
 
             dist = rdMolTransforms.GetBondLength(conf, i, j)
-            if dist < 1 - threshold:
+
+            if dist < threshold:
                 overlaps.append((i, j, dist))
-                break  # Remove this break if you want to find all overlaps for each atom
+                # Remove this break if you want to find all overlaps for
+                # each atom.
+                break
 
     return overlaps
