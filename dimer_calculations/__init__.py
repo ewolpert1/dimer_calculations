@@ -6,3 +6,4 @@ from .dimer_centroids import *
 from .pores import *
 from .read_energies_catenated_single import *
 from .utils import *
+from .xyz_to_inp import *
