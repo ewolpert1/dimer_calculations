@@ -8,7 +8,7 @@ from rdkit import Chem
 from rdkit.Geometry import Point3D
 from collections import deque, defaultdict
 import stk
-from xyz_to_inp import convert_files
+from .xyz_to_inp import convert_files
 
 bond_dict = {'1': rdkit.rdchem.BondType.SINGLE,
              'am': rdkit.rdchem.BondType.SINGLE,
