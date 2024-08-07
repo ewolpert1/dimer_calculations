@@ -1,7 +1,20 @@
 # Introduction
-Hi Harry and Andrew, welcome to my dimer calculations code. I thought it would be best to get this out to you ASAP. Due to this and my distinct lack of coding skills this is very much in beta mode and has not been thoroughly tested. Therefore I'm sure some issues will arise and I imagine the usability isn't great and there are definitely dead functions, sorry about that, but any thoughts/suggestions of what could help would be much appreciated!
 
-The code works by taking cage molecules and creates dimers by displacing a cage along each of the high symmetry axes, which are: window to window (ww), window to arene (wa), window to vertex (wa), and arene to arene (aa). It displaces each of the cages such that the facets defined are 1 angstrom away (e.g. the window to window facet) and then displaces it at 1 angstrom increments up to 8 angstroms away. It also displaces each of the cages around the facet to properly sample configurational space, and rotates them about the high symmetry axis in 30 degree increments. The values of each of these can be changed. Currently its hard coded in as it would need to be done within the optimiser_functions.py file but watch this space for more functionality in the future. The code checks for overlap between the cages, as well as catenation and removes any cages with overlap and/or catenation. These are set with tolerance factors which again you can change but are currently hard coded into it. 
+To install the package:
+
+git clone -b refactoring --single-branch git@github.com:ewolpert1/dimer_calculations.git
+
+cd dimer_calculations
+
+conda create --name your-env-name python=3.11
+conda activate your-env-name
+
+pip install -r requirements.txt
+
+pip install .
+
+config.py in the dimer_calcs folder will have to be changed for your specific envrionment.
+
 
 # Optimisers
 
