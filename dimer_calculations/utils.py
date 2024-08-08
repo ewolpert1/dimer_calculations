@@ -362,35 +362,35 @@ def closest_point_on_segment(point, segment_start, segment_end):
         return segment_end
     return segment_start + projection_length * seg_unit_vec
 
-def check_overlaps(mol, threshold=0.2):
-    """
-    Check for overlaps between atoms in a molecule.
+#def check_overlaps(mol, threshold=0.2):
+#    """
+#    Check for overlaps between atoms in a molecule.
 
-    Args:
-    - mol (rdkit.Chem.Mol): The molecule to check.
-    - threshold (float): Distance threshold for overlap detection.
+#    Args:
+#    - mol (rdkit.Chem.Mol): The molecule to check.
+#    - threshold (float): Distance threshold for overlap detection.
 
-    Returns:
-    - overlaps (list): List of tuples with overlapping atom indices and their distance.
-    """
-    overlaps = []
+#    Returns:
+#    - overlaps (list): List of tuples with overlapping atom indices and their distance.
+#    """
+#    overlaps = []
 
-    # Calculate pairwise distances
-    conf = mol.GetConformer()
-    for i in range(mol.GetNumAtoms()):
-        if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:
-            continue
+#    # Calculate pairwise distances
+#    conf = mol.GetConformer()
+#    for i in range(mol.GetNumAtoms()):
+#        if mol.GetAtomWithIdx(i).GetAtomicNum() == 1:
+#            continue
 
-        for j in range(i+1, mol.GetNumAtoms()):
-            # Skip hydrogen atoms
-            if mol.GetAtomWithIdx(j).GetAtomicNum() == 1:
-                continue
+#        for j in range(i+1, mol.GetNumAtoms()):
+#            # Skip hydrogen atoms
+#            if mol.GetAtomWithIdx(j).GetAtomicNum() == 1:
+#                continue
 
-            dist = rdMolTransforms.GetBondLength(conf, i, j)
-            if dist < 1-threshold:
-                overlaps.append((i, j, dist))
-                break  # Remove this break if you want to find all overlaps for each atom
+#            dist = rdMolTransforms.GetBondLength(conf, i, j)
+#            if dist < 1-threshold:
+#                overlaps.append((i, j, dist))
+#                break  # Remove this break if you want to find all overlaps for each atom
 
 
-    return overlaps
+#    return overlaps
 
