@@ -641,20 +641,21 @@ class DimerOptimizer:
         structure.write(f'{output_dir}_opt.mol')
 
     def optimise_dimer_XTB(dimer, output_dir, XTB_PATH, fixed_atom_set=None):
-        os.makedirs(output_dir, exist_ok=True)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
 
-        XTB_opt = XTBDimer(
-            xtb_path=XTB_PATH,
-            output_dir=output_dir,  # Change to correct path for Tmp files
-            unlimited_memory=True,
-            opt_level='crude',
-            max_runs=1,
-            calculate_hessian=True,
-            fixed_atom_set=fixed_atom_set,
-        )
-        #OPLS_opt.assign_FF(dimer)
-        structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
-        structure.write(f'{output_dir}_opt.mol')
+            XTB_opt = XTBDimer(
+                xtb_path=XTB_PATH,
+                output_dir=output_dir,  # Change to correct path for Tmp files
+                unlimited_memory=True,
+                opt_level='crude',
+                max_runs=1,
+                calculate_hessian=True,
+                fixed_atom_set=fixed_atom_set,
+            )
+            structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
+            structure.write(f'{output_dir}_opt.mol')
 
 
 
