@@ -640,7 +640,7 @@ class DimerOptimizer:
         structure = OPLS_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f'{output_dir}_opt.mol')
 
-    def optimise_dimer_XTB(dimer, output_dir, XTB_PATH,opt_level='normal',num_cores=1,electronic_temperature=300, solvent_model='gbsa', solvent=None, solvent_grid='normal',charge=0,unpaired_electrons=0, fixed_atom_set=None,unlimited_memory=False, write_sasa_info=False):
+    def optimise_dimer_XTB(dimer, output_dir, XTB_PATH,opt_level='normal',num_cores=1,electronic_temperature=300, solvent_model='gbsa', solvent=None, solvent_grid='normal',charge=0,unpaired_electrons=0, fixed_atom_set=None,unlimited_memory=False):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         
@@ -660,7 +660,6 @@ class DimerOptimizer:
                 num_unpaired_electrons=unpaired_electrons,
                 calculate_hessian=True,
                 fixed_atom_set=fixed_atom_set,
-                write_sasa_info=write_sasa_info,
             )
             structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
             structure.write(f'{output_dir}_opt.mol')
