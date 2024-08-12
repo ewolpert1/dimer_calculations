@@ -640,7 +640,7 @@ class DimerOptimizer:
         structure = OPLS_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f'{output_dir}_opt.mol')
 
-    def optimise_dimer_XTB(dimer, output_dir, XTB_PATH,num_cores=1,charge=0,unpaired_electrons=0, fixed_atom_set=None):
+    def optimise_dimer_XTB(dimer, output_dir, XTB_PATH,opt_level='normal',num_cores=1,electronic_temperature=300, solvent_model='gbsa', solvent=None, solvent_grid='normal',charge=0,unpaired_electrons=0, fixed_atom_set=None,unlimited_memory=False, write_sasa_info=False):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         
@@ -648,14 +648,19 @@ class DimerOptimizer:
             XTB_opt = XTBDimer(
                 xtb_path=XTB_PATH,
                 output_dir=output_dir,  # Change to correct path for Tmp files
-                unlimited_memory=True,
-                opt_level='crude',
+                unlimited_memory=unlimited_memory,
+                electronic_temperature=electronic_temperature,
+                solvent_model=solvent_model,
+                solvent=solvent,
+                solvent_grid='normal',
+                opt_level=opt_level,
                 max_runs=1,
                 charge=charge,
                 num_cores=num_cores,
                 num_unpaired_electrons=unpaired_electrons,
                 calculate_hessian=True,
                 fixed_atom_set=fixed_atom_set,
+                write_sasa_info=write_sasa_info,
             )
             structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
             structure.write(f'{output_dir}_opt.mol')
