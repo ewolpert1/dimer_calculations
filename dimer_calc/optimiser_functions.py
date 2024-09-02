@@ -10,11 +10,6 @@ from uuid import uuid4
 import numpy as np
 import stk
 import stko
-from stko._internal.optimizers.utilities import (
-    get_metal_atoms,
-    mol_from_mae_file,
-    move_generated_macromodel_files,
-)
 
 from .utils import (
     calculate_perpendicular_vector,
@@ -237,11 +232,11 @@ class OPLSDimer(stko.MacroModelForceField):
         self._run_bmin(mol, run_name)
         # Get the ``.maegz`` optimization output to a ``.mae``.
         self._convert_maegz_to_mae(run_name)
-        rdkit_opt_mol = mol_from_mae_file(mae_path)
+        rdkit_opt_mol = stko.mol_from_mae_file(mae_path)
         mol = mol.with_position_matrix(
             rdkit_opt_mol.GetConformer().GetPositions()
         )
-        move_generated_macromodel_files(run_name, output_dir)
+        stko.move_generated_macromodel_files(run_name, output_dir)
         return mol
 
 
@@ -444,7 +439,7 @@ class GulpDimer(stko.GulpUFFOptimizer):
         out_file = "gulp_opt.ginout"
         output_xyz = "gulp_opt.xyz"
 
-        metal_atoms = get_metal_atoms(mol)
+        metal_atoms = stko.get_metal_atoms(mol)
 
         try:
             # Write GULP file.
