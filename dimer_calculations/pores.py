@@ -13,7 +13,6 @@ def two_pores(
     centroid2: np.ndarray,
 ) -> list[float]:
     """Run poremapper on dimer."""
-
     # Read in host from xyz file.
     host = pm.Host(
         atoms=(

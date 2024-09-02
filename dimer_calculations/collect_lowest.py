@@ -278,7 +278,7 @@ def mol_from_mae_file(Cagename, destination_folder_end, mae_end):
         mols[structure_name] = mol  # Storing the mol with its name as key
     return mols
 
-  
+
 def log_to_mol(
     Cagename, destination_folder_end, log_file="no_constraints.log"
 ):
@@ -367,7 +367,7 @@ def log_to_mol(
     filtered_names = set(name for energy, name in filtered_minima)
     return filtered_names
 
-  
+
 def write_out_mol(Cagename, destination_folder_end, mols_dict, filtered_names):
     destination_folder = f"{destination_folder_end}/{Cagename}"
 
@@ -378,4 +378,3 @@ def write_out_mol(Cagename, destination_folder_end, mols_dict, filtered_names):
             with open(f"{destination_folder}/{name}.mol", "w+") as f:
                 print(rdkit.MolToMolBlock(mol), file=f)
     return iter
- 

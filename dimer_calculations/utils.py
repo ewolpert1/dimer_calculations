@@ -62,13 +62,11 @@ def generate_com_content(fix_atoms):
     footer = [
         " CONV       2      0      0      0     0.0500     0.0000     0.0000     0.0000",
         " MINI       1      0   2500      0     0.0000     0.0000     0.0000     0.0000",
-
         " END        0      0      0      0     0.0000     0.0000     0.0000     0.0000",
     ]
     # Combine header, fxat lines for fixed atoms, and footer
     if fix_atoms:
         fxat_lines = [
-
             f" FXAT     {atom:>3}      0      0      0   100.0000     0.0000     0.0000     0.0000"
             for atom in fix_atoms
         ]
@@ -159,7 +157,6 @@ def find_integer_points(vector, dist, radius):
     for x in range(-radius, radius + 1, int(radius / 2)):
         for y in range(-radius, radius + 1, int(radius / 2)):
             if np.linalg.norm([x, y]) <= radius:
-
                 point3D = (
                     center
                     + x * orthogonal_vectors[0]
@@ -168,7 +165,6 @@ def find_integer_points(vector, dist, radius):
                 integer_points.append(point3D)
 
     return integer_points
-
 
 
 def find_orthogonal_vectors(vector):
@@ -196,7 +192,6 @@ def find_orthogonal_vectors(vector):
     return N1, N2
 
 
-
 def calculate_perpendicular_vector(vector):
     """Calculate a vector perpendicular to the given vector.
 
@@ -216,7 +211,6 @@ def calculate_perpendicular_vector(vector):
         return np.array([y, -x, 0])
     else:
         raise ValueError("The input vector must be 2D or 3D.")
-
 
 
 def create_rotated_guest(
@@ -301,7 +295,6 @@ def create_folders_and_return_paths(parent_folder, suffixes):
         # Append the new folder path to the list
         folder_paths.append(new_folder_path)
     return folder_paths
-
 
 
 def run_a_cage_script(cage_number):
@@ -408,9 +401,11 @@ def midpoint(conf: Chem.Mol, idx1: int, idx2: int) -> np.ndarray:
     pos2 = np.array(conf.GetAtomPosition(idx2))
     return (pos1 + pos2) / 2
 
+
 def distance(point1, point2):
     """Calculate the distance between two points."""
     return np.linalg.norm(point1 - point2)
+
 
 def closest_point_on_segment(point, segment_start, segment_end):
     """Find the closest point on the line segment to the given point."""

@@ -1,15 +1,11 @@
-import re
+def convert_files(input_file_path, file_name, cutoff=400, rel_cutoff=60):
+    input_file = input_file_path
+    output_file_path = input_file[:-4] + ".inp"
 
-def convert_files(input_file_path,file_name,cutoff=400,rel_cutoff=60):
-  input_file = input_file_path
-  output_file_path = input_file[:-4] + '.inp'
+    project_name = file_name
 
-  project_name = file_name
-
-
-
-  output_file = open(output_file_path, 'w')
-  output_file.write(f"""&GLOBAL
+    output_file = open(output_file_path, "w")
+    output_file.write(f"""&GLOBAL
   PROJECT_NAME {project_name}
   RUN_TYPE GEO_OPT
   PRINT_LEVEL MEDIUM
@@ -46,7 +42,7 @@ def convert_files(input_file_path,file_name,cutoff=400,rel_cutoff=60):
       &OUTER_SCF ! repeat the inner SCF cycle 10 times
         MAX_SCF 10
         EPS_SCF 1.0E-6 ! must match the above
-      &END      
+      &END
       &PRINT
         &RESTART OFF
         &END
@@ -70,17 +66,17 @@ def convert_files(input_file_path,file_name,cutoff=400,rel_cutoff=60):
 &END DFT
 &SUBSYS
  &CELL
-  ABC 60 60 60 
+  ABC 60 60 60
   ALPHA_BETA_GAMMA 90 90 90
  &END CELL
-&COORD  
+&COORD
 """)
-  input_file = f"{input_file_path}"
-  with open(input_file, 'r') as input:
-      lines = input.readlines()
-  for line in lines[2:]:
-      output_file.write(line)
-  output_file.write("""&END COORD
+    input_file = f"{input_file_path}"
+    with open(input_file) as input:
+        lines = input.readlines()
+    for line in lines[2:]:
+        output_file.write(line)
+    output_file.write("""&END COORD
 &KIND C
   BASIS_SET TZVP-MOLOPT-GTH
   POTENTIAL GTH-PBE-q4
@@ -115,11 +111,11 @@ def convert_files(input_file_path,file_name,cutoff=400,rel_cutoff=60):
 &END KIND
 &END SUBSYS
 &END FORCE_EVAL""")
-pass
+
 
 if __name__ == "__main__":
     import sys
+
     input_file = sys.argv[1]
     output_file = sys.argv[2]
     convert_files(input_file, output_file)
-

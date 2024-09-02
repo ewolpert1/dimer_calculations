@@ -356,7 +356,6 @@ class XTBEnergyReader:
                     low_eng.append((energy, structure_name))
                     shutil.copy2(path_new, self.destination_folder)
 
-
     def generate_structure_path(self, structure_name):
         # Construct the final path
         path = f"{structure_name}.xtbopt.mol"

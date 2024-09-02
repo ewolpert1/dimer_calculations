@@ -224,7 +224,6 @@ class CageOperations:
 
         """
 
-
     def fix_atom_set(self, diamine_smiles, metal_atom=None):
         """Return the atom IDs of the carbon atoms from the diamine that are adjacent to the amine nitrogen atoms.
 
