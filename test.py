@@ -81,12 +81,13 @@ It returns a dictionary with the following information:
 list_of_dimers = DimerGenerator.generate(molecule,
         list_of_windows[0],
         -list_of_windows[0],
-        displacement_distance=window_size,
+        displacement_distance=2*window_size-2,
         displacement=5,
         displacement_step_size=1,
         rotation_limit=120,
         rotation_step_size=30,
         slide=False,
+        radius=window_size,
         )
 
 """
