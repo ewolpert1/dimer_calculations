@@ -41,3 +41,4 @@ cover/
 dmypy.json
 
 .ruff_cache/
+.benchmarks/
