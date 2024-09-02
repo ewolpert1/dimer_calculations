@@ -15,64 +15,6 @@ from .utils import (
 )
 
 
-class Cage:
-    def __init__(self, file_path=None, molecule=None):
-        """Initialize a Cage from a file or directly from an stk molecule.
-
-        Args:
-        ----
-        - file_path (str): Path to the file from which to load the cage.
-        - molecule (stk.Molecule): Directly provided stk molecule.
-
-        """
-        if file_path:
-            self.cage = stk.BuildingBlock.init_from_file(file_path)
-        elif molecule:
-            self.cage = molecule
-        else:
-            raise ValueError("Either file_path or molecule must be provided.")
-
-    def construct(self, bb1_smiles, bb2_smiles):
-        """Optimize building blocks and construct a FourPlusSix cage.
-
-        The resulting STK molecule of the cage is centered at the origin.
-        """
-        bb1 = stk.BuildingBlock(
-            smiles=bb1_smiles,
-            functional_groups=[
-                stk.PrimaryAminoFactory(),
-                stk.AldehydeFactory(),
-            ],
-        )
-        rdkit_bb1 = bb1.to_rdkit_mol()
-        rdkit.SanitizeMol(rdkit_bb1)
-        rdkit.MMFFOptimizeMolecule(rdkit_bb1)
-        bb1 = bb1.with_position_matrix(
-            position_matrix=rdkit_bb1.GetConformer().GetPositions(),
-        )
-
-        bb2 = stk.BuildingBlock(
-            smiles=bb2_smiles,
-            functional_groups=[
-                stk.AldehydeFactory(),
-                stk.PrimaryAminoFactory(),
-            ],
-        )
-        rdkit_bb2 = bb2.to_rdkit_mol()
-        rdkit.SanitizeMol(rdkit_bb2)
-        rdkit.MMFFOptimizeMolecule(rdkit_bb2)
-        bb2 = bb2.with_position_matrix(
-            position_matrix=rdkit_bb2.GetConformer().GetPositions(),
-        )
-
-        # Construct the cage
-        self.cage = stk.ConstructedMolecule(
-            topology_graph=stk.cage.FourPlusSix((bb1, bb2)),
-            optimizer=stk.MCHammer(),
-        )
-        self.cage = self.cage.with_centroid([0, 0, 0])
-
-
 class CageOperations:
     """Cage operations class."""
 
