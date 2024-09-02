@@ -2,11 +2,14 @@
 
 import stk
 
-from dimer_calc.axes import by_midpoint, by_smiles, remove_common
-from dimer_calc.cage import CageOperations
-from dimer_calc.config import XTB_PATH
-from dimer_calc.optimiser_functions import DimerGenerator, DimerOptimizer
-from dimer_calc.utils import remove_aldehyde
+from dimer_calculations.axes import by_midpoint, by_smiles, remove_common
+from dimer_calculations.cage import CageOperations
+from dimer_calculations.config import XTB_PATH
+from dimer_calculations.optimiser_functions import (
+    DimerGenerator,
+    DimerOptimizer,
+)
+from dimer_calculations.utils import remove_aldehyde
 
 
 def main() -> None:

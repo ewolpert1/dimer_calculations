@@ -35,7 +35,7 @@ dev = [
 github = "https://github.com/ewolpert1/dimer_calculations"
 
 [tool.setuptools_scm]
-write_to = "dimer_calc/_version.py"
+write_to = "dimer_calculations/_version.py"
 
 [tool.setuptools.packages.find]
 where = [

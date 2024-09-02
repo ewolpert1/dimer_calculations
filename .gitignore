@@ -1,5 +1,5 @@
 __pycache__/
-dimer_calc/_version.py
+dimer_calculations/_version.py
 # Distribution / packaging
 .Python
 build/

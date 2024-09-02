@@ -20,10 +20,10 @@ check:
   ( set -x; ruff format --check . )
 
   echo
-  ( set -x; mypy dimer_calc )
+  ( set -x; mypy dimer_calculations )
 
   echo
-  ( set -x; pytest --cov=dimer_calc --cov-report term-missing )
+  ( set -x; pytest --cov=dimer_calculations --cov-report term-missing )
 
   test $error = 0
 
