@@ -355,7 +355,6 @@ def log_to_mol(
         #
         for element in sorted(minima_for_file):
             input1.write(str(element) + "\n")
-        #
         if minima_for_file:
             min_energy = min(x[0] for x in minima_for_file)
             filtered_minima = [

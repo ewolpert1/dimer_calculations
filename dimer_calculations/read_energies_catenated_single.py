@@ -14,9 +14,10 @@ from .pores import check_catenane, one_pore, two_pores
 from .utils import generate_com_content
 
 
-def find_last_segment_in_folder(folder_name):
+def find_last_segment_in_folder(folder_name: str) -> str | None:
+    """Find the last segment in folder."""
     parts = folder_name.split("_")
-    if len(parts) >= 3:
+    if len(parts) >= 3:  # noqa: PLR2004
         return f"{parts[-1]}"
     return None
 
