@@ -62,7 +62,7 @@ def parse_atom_and_bond_data(data: list[str]) -> tuple:
 
     return atom_data, bond_data
 
-
+ 
 def calculate_centroid(atoms: list[tuple]) -> tuple:
     """Calculate the centroid of a group of atoms.
 

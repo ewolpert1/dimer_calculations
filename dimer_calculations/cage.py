@@ -216,12 +216,14 @@ class CageOperations:
         - rotated_vectors: a list of rotated vectors
         - dist: magnitude of minimum displacement
 
+
         Returns
         -------
         - lists of constructed dimers with packings of ww, wa, aa and rotations
         - list_centroids: a list of vectors representing the centroids of all the displaced cages
 
         """
+
 
     def fix_atom_set(self, diamine_smiles, metal_atom=None):
         """Return the atom IDs of the carbon atoms from the diamine that are adjacent to the amine nitrogen atoms.
@@ -401,4 +403,5 @@ class CageOperations:
         fixed_atom_set = CageOperations(cage=rdkit_mol).fix_atom_set(
             diamine_smile, metal_atom=metal_atom
         )
+
         return list_wa, list_ww, list_aa, list_wv, fixed_atom_set

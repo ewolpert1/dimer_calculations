@@ -195,6 +195,7 @@ class GULPEnergyReader:
             os.makedirs(self.destination_folder_end)
             if not os.path.exists(self.destination_folder):
                 os.makedirs(self.destination_folder)
+
         search_dir = self.cage_name_gulp
         all_minima = []
         for file_path in glob.glob(
@@ -247,6 +248,7 @@ class GULPEnergyReader:
                     reference_energy = energy  # Set the first uncatenated structure's energy as the reference
                 elif energy - reference_energy > 30:
                     break
+
                 # selected_structures.append((energy, structure_name))
                 if reference_energy is not None:
                     low_eng.append((energy, structure_name))
@@ -284,6 +286,7 @@ class XTBEnergyReader:
             os.makedirs(self.destination_folder_end)
             if not os.path.exists(self.destination_folder):
                 os.makedirs(self.destination_folder)
+
         search_dir = self.cage_name_xtb
         all_minima = []
         for item in os.listdir(search_dir):
@@ -347,10 +350,12 @@ class XTBEnergyReader:
                     reference_energy = energy  # Set the first uncatenated structure's energy as the reference
                 elif energy - reference_energy > 30:
                     break
+
                 # selected_structures.append((energy, structure_name))
                 if reference_energy is not None:
                     low_eng.append((energy, structure_name))
                     shutil.copy2(path_new, self.destination_folder)
+
 
     def generate_structure_path(self, structure_name):
         # Construct the final path
