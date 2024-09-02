@@ -20,11 +20,7 @@ You need to give it:
 
 '''
 
-
-
-
 list_of_vertices,vertice_size = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('NCCN'))
-print(vertice_size)
 
 '''
 You can then take these vectors and use them to determine the centroids of the facets, even if theyre windows.
@@ -37,22 +33,16 @@ For this you need to give it:
     tolerance: float. As this function measures the distance between the vertices to get the ones forming a facet, this is the tolerance for similar the distances have to be where 0.1 is 10% (I think).
 '''
 
-facet_axes,facet_size =Axes.ByMidpoint(molecule,
+facet_axes,centroid_to_facet =Axes.ByMidpoint(molecule,
     vectors=list_of_vertices,
     vertice_size=vertice_size,
     no_vectors_define_facet=3,
-    tolerance=0.1)#if this isnt 4+6 then facet is just windows
+    tolerance=0.1)
 
-list_of_arenes,arene_size = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
+list_of_edges,centroid_to_edge = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
 
-"""
-This function is for when you have a symmetry lower than your molecule e.g. 4+6 so you can treats the windows and the arenes separately.
-
-"""
-
-list_of_windows =Axes.RemoveCommon(molecule,facet_axes, list_of_arenes)
-
-window_size=arene_size
+list_of_windows = facet_axes
+centroid_to_window = facet_size
 
 """
 Once your axes are defined this function generates the dimers.
@@ -81,7 +71,7 @@ It returns a dictionary with the following information:
 list_of_dimers = DimerGenerator.generate(molecule,
         list_of_windows[0],
         -list_of_windows[0],
-        displacement_distance=2*window_size-2,
+        displacement_distance=2*centroid_to_window-2,
         displacement=5,
         displacement_step_size=1,
         rotation_limit=120,
