@@ -110,7 +110,11 @@ This is what you'll need to add your own CGOptimiser or something to. You can do
 
 
 for dimer_entry in list_of_dimers:
-
-    #gulp_optimizer=DimerOptimizer.optimise_dimer_gulp(dimer_entry['Dimer'],f"gulp_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",GULP_PATH,fixed_atom_set)
-    #OPLS_optimizer=DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)
-    XTB_optimizer=DimerOptimizer.optimise_dimer_XTB(dimer_entry['Dimer'],f"XTB_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",XTB_PATH,fixed_atom_set)
+    if not os.path.exists('dimers'):
+        os.makedirs('dimers')
+    filename=f"dimers/XTB_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}.mol"
+    dimer_entry['Dimer'].write(filename)
+    rdkit_molecule = Chem.MolFromMolFile(filename)
+    #This threshold is the minimum distance allowed between non hydrogen atoms
+    overlap=dimer_calculations.check_overlaps(rdkit_molecule, threshold=1)
+    dimer_calculations.DimerOptimizer.optimise_dimer_XTB(dimer_entry['Dimer'],f"XTB_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",XTB_PATH,opt_level='crude',num_cores=4,unpaired_electrons=24,fixed_atom_set=None)
