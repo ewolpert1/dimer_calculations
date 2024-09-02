@@ -12,6 +12,8 @@ dependencies = [
   "stko",
   "pywindowx",
   "PoreMapper",
+  "numpy>=1.18.0",
+  "scipy>=1.4.0",
 ]
 requires-python = ">=3.11"
 dynamic = ["version"]
