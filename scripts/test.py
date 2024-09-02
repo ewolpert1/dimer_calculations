@@ -7,7 +7,7 @@ from dimer_calculations.cage import CageOperations
 from dimer_calculations.config import XTB_PATH
 from dimer_calculations.optimiser_functions import (
     DimerGenerator,
-    DimerOptimizer,
+    optimise_dimer_xtb,
 )
 from dimer_calculations.utils import remove_aldehyde
 
@@ -160,9 +160,7 @@ def main() -> None:
     """
 
     for dimer_entry in list_of_dimers:
-        # Call this something like: xtb_optimizer, then use
-        # `xtb_optimizer.optimize()`
-        _ = DimerOptimizer.optimise_dimer_XTB(
+        optimise_dimer_xtb(
             dimer=dimer_entry["Dimer"],
             output_dir=(
                 f"XTB_shell_{dimer_entry['Displacement shell']}_slide_"
