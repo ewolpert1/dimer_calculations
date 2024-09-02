@@ -128,7 +128,8 @@ class DimerGenerator:
         rotation_limit: float = 120,
         rotation_step_size: float = 30,
         overlap_tolerance: float = 0.2,
-        slide: bool = False):
+        slide: bool = False
+        radius: float= 1):
 
         cage = stk.BuildingBlock.init_from_molecule(self)
         origin = cage.get_centroid()
@@ -139,10 +140,9 @@ class DimerGenerator:
         dimer_list = []
         for i in range(0, int(displacement/displacement_step_size)):
             if slide:
-                displaced_centers=utils.find_integer_points(axes, displacement_distance*2-2+i, int(displacement_distance) + 1)
-                print(slide)
+                displaced_centers=utils.find_integer_points(axes, displacement_distance+i, radius + 1)
             else:
-                displaced_centers= [(displacement_distance*2-2+i)*axes]
+                displaced_centers= [(displacement_distance+i)*axes]
             slide_up=0
             for center in displaced_centers:
                 rot_by=0
@@ -157,13 +157,12 @@ class DimerGenerator:
                         rot_by=rot_by+1
                         continue
                     dimer_list.append({
-                        'Displacement shell':(2-2+i),
+                        'Displacement shell':i,
                         'Slide': slide_up,
                         'Rotation': rot_by*rotation_step_size,
                         'Displacement centroid': center,
                         'Dimer': dimer
                     })
-                    #dimer_list.append(dimer_entry)
                     rot_by=rot_by+1
                 slide_up=slide_up+1
         return dimer_list
