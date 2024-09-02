@@ -3,7 +3,6 @@ import stk
 from dimer_calc.Optimiser_functions import *
 from dimer_calc.cage import *
 
-
 class Dimer:
     molecule: stk.Molecule
 
@@ -118,5 +117,4 @@ This is what you'll need to add your own CGOptimiser or something to. You can do
 for dimer_entry in list_of_dimers:
 
     #gulp_optimizer=DimerOptimizer.optimise_dimer_gulp(dimer_entry['Dimer'],f"gulp_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",GULP_PATH,fixed_atom_set)
-    #OPLS_optimizer=DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)
-    XTB_optimizer=DimerOptimizer.optimise_dimer_XTB(dimer_entry['Dimer'],f"XTB_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",XTB_PATH,fixed_atom_set)
+    OPLS_optimizer=DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)
