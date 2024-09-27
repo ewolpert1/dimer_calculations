@@ -128,7 +128,7 @@ class DimerGenerator:
         rotation_limit: float = 120,
         rotation_step_size: float = 30,
         overlap_tolerance: float = 0.2,
-        slide: bool = False
+        slide: bool = False,
         radius: float= 1):
 
         cage = stk.BuildingBlock.init_from_molecule(self)
