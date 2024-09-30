@@ -45,7 +45,7 @@ class OPLSEnergyReader:
             folder_name = os.path.basename(dirpath)  # Extract folder name
             if folder_name.startswith(self.cage_name_mae):
                 last_segment = find_last_segment_in_folder(folder_name)
-                if last_segment is None:
+                if (last_segment== None):
                     continue
                 for filename in filenames:
                     if filename.endswith(".log"):  # Identify log files
@@ -63,8 +63,9 @@ class OPLSEnergyReader:
         energy_counter = 0
         structure_name = None
         filepath = os.path.join(dirpath, filename)
+        output_filename = os.path.join(dirpath, "energies.txt")
 
-        with open(filepath, 'r') as f:
+        with open(output_filename, "w+") as input1, open(filepath, 'r') as f:
             lines = f.readlines()
             for i, line in enumerate(lines):
                 if "Structure name, if any, appears on next line:" in line:
@@ -195,7 +196,7 @@ class GULPEnergyReader:
         low_eng =[]
         for energy, structure_name in sorted_minima:
             path, one_mol = self.generate_structure_path(structure_name)
-            centroids = dimer_centroids.return_centroids(path)
+            centroids = return_centroids(path)
             cage_dimer = stk.BuildingBlock.init_from_file(path)
             dimer = pores.two_pores(cage_dimer, centroids[0], centroids[1])
             cage = stk.BuildingBlock.init_from_file(f"{one_mol}.mol")
@@ -212,6 +213,7 @@ class GULPEnergyReader:
                 #selected_structures.append((energy, structure_name))
                 if reference_energy is not None:
                     low_eng.append((energy, structure_name))
+                    dst = os.path.join(self.destination_folder, os.path.basename(path))
                     shutil.copy2(path, self.destination_folder)
 
     def generate_structure_path(self,structure_name):
@@ -254,6 +256,9 @@ class XTBEnergyReader:
             for energy, structure_name in sorted_minima:
                 energies_file.write(f"{energy}, {structure_name}\n")
         return all_minima
+        #    if energy is not None:
+        #        with open(output_file, 'a') as f:  # Open in append mode
+        #            f.write(f"{folder_name}, {energy}\n")
 
 
 
@@ -282,7 +287,7 @@ class XTBEnergyReader:
             path, one_mol = self.generate_structure_path(structure_name)
             path_new=f"{structure_name}.mol"
             subprocess.run(["obabel", path, "-O", path_new, "-x3"], check=True)
-            centroids = dimer_centroids.return_centroids(path_new)
+            centroids = return_centroids(path_new)
             cage_dimer = stk.BuildingBlock.init_from_file(path_new)
             dimer = pores.two_pores(cage_dimer, centroids[0], centroids[1])
             cage = stk.BuildingBlock.init_from_file(f"{one_mol}.mol")

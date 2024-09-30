@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: dimer_calculations
+Version: 0.1.0
+Summary: A short description of your project
+Home-page: https://github.com/ewolpert1/dimer_calculations
+Author: Your Name
+Author-email: your.email@example.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+License-File: LICENSE
+Requires-Dist: numpy>=1.18.0
+Requires-Dist: scipy>=1.4.0

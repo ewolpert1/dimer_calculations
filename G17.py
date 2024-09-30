@@ -1,7 +1,16 @@
 
 import stk
-from dimer_calc.Optimiser_functions import *
-from dimer_calc.cage import *
+import dimer_calculations
+from dimer_calculations import Optimiser_functions
+from dimer_calculations import utils
+from dimer_calculations import cage
+from rdkit import Chem
+import os
+import logging
+
+logging.basicConfig(filename='output.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class Dimer:
     molecule: stk.Molecule
@@ -9,6 +18,8 @@ class Dimer:
 
 filename='cages/G_17.mol'
 molecule=stk.BuildingBlock.init_from_file(filename)
+
+SCHRODINGER_PATH = "/opt/schrodinger/suites2023-3/"
 
 '''
 This function returns the vectors between the centroid of the molecule and the smiles string and the magnitude/distance.
@@ -19,7 +30,7 @@ You need to give it:
 
 '''
 
-list_of_vertices,vertice_size = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('NCCN'))
+list_of_vertices,vertice_size = Optimiser_functions.Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('NCCN'))
 
 '''
 You can then take these vectors and use them to determine the centroids of the facets, even if theyre windows.
@@ -32,22 +43,16 @@ For this you need to give it:
     tolerance: float. As this function measures the distance between the vertices to get the ones forming a facet, this is the tolerance for similar the distances have to be where 0.1 is 10% (I think).
 '''
 
-facet_axes,facet_size =Axes.ByMidpoint(molecule,
+facet_axes,centroid_to_facet =Optimiser_functions.Axes.ByMidpoint(molecule,
     vectors=list_of_vertices,
     vertice_size=vertice_size,
     no_vectors_define_facet=3,
-    tolerance=0.1)#if this isnt 4+6 then facet is just windows
+    tolerance=0.1)
 
-list_of_arenes,centroid_to_arene = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
+list_of_edges,centroid_to_edge = Optimiser_functions.Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
 
-"""
-This function is for when you have a symmetry lower than your molecule e.g. 4+6 so you can treats the windows and the arenes separately.
-
-"""
-
-list_of_windows =Axes.RemoveCommon(molecule,facet_axes, list_of_arenes)
-
-centroid_to_window=centroid_to_arene
+list_of_windows = facet_axes
+centroid_to_window = centroid_to_facet
 
 """
 Once your axes are defined this function generates the dimers.
@@ -73,7 +78,7 @@ It returns a dictionary with the following information:
     'Dimer': the stk.Molecule of the dimer
 """
 
-list_of_dimers = DimerGenerator.generate(molecule,
+list_of_dimers = dimer_calculations.DimerGenerator.generate(molecule,
         list_of_windows[0],
         -list_of_windows[0],
         displacement_distance=2*centroid_to_window-2,
@@ -82,7 +87,7 @@ list_of_dimers = DimerGenerator.generate(molecule,
         rotation_limit=120,
         rotation_step_size=30,
         slide=False,
-        radius=window_size,
+        radius=centroid_to_window,
         )
 
 """
@@ -98,7 +103,7 @@ I'm pretty sure this only works if your molecule string contains an imine. I ima
 
 """
 
-fixed_atom_set = CageOperations.fix_atom_set(list_of_dimers[0]['Dimer'],utils.remove_aldehyde('NCCN'), metal_atom=None)
+fixed_atom_set = cage.Cage.fix_atom_set(list_of_dimers[0]['Dimer'],utils.remove_aldehyde('NCCN'), metal_atom=None)
 
 """
 This is the optimisation part. It will optimise the dimer using GULP, OPLS or XTB.
@@ -115,6 +120,12 @@ This is what you'll need to add your own CGOptimiser or something to. You can do
 
 
 for dimer_entry in list_of_dimers:
-
+    if not os.path.exists('dimers'):
+        os.makedirs('dimers')
+    filename=f"dimers/shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}.mol"
+    dimer_entry['Dimer'].write(filename)
+    rdkit_molecule = Chem.MolFromMolFile(filename)
+    overlap=dimer_calculations.check_overlaps(rdkit_molecule, threshold=1)
+    #This threshold is the minimum distance allowed between non hydrogen atoms
     #gulp_optimizer=DimerOptimizer.optimise_dimer_gulp(dimer_entry['Dimer'],f"gulp_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",GULP_PATH,fixed_atom_set)
-    OPLS_optimizer=DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)
+    dimer_calculations.DimerOptimizer.optimise_dimer_OPLS(dimer_entry['Dimer'],f"OPLS_shell_{dimer_entry['Displacement shell']}_slide_{dimer_entry['Slide']}_rot_{dimer_entry['Rotation']}",SCHRODINGER_PATH,fixed_atom_set)

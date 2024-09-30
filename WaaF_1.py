@@ -1,12 +1,16 @@
 
 import stk
-from dimer_calc.Optimiser_functions import *
-from dimer_calc.cage import *
-
+import dimer_calculations
+import os
+from dimer_calculations import Optimiser_functions
+from dimer_calculations import utils
+from dimer_calculations import cage
+from rdkit import Chem
 
 class Dimer:
     molecule: stk.Molecule
 
+XTB_PATH ="/Users/Emma/miniforge3/envs/dimer_pip/bin/xtb"
 
 filename='cages/G_17.mol'
 molecule=stk.BuildingBlock.init_from_file(filename)
@@ -20,7 +24,7 @@ You need to give it:
 
 '''
 
-list_of_vertices,vertice_size = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('NCCN'))
+list_of_vertices,vertice_size = Optimiser_functions.Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('NCCN'))
 
 '''
 You can then take these vectors and use them to determine the centroids of the facets, even if theyre windows.
@@ -33,16 +37,16 @@ For this you need to give it:
     tolerance: float. As this function measures the distance between the vertices to get the ones forming a facet, this is the tolerance for similar the distances have to be where 0.1 is 10% (I think).
 '''
 
-facet_axes,centroid_to_facet =Axes.ByMidpoint(molecule,
+facet_axes,centroid_to_facet =Optimiser_functions.Axes.ByMidpoint(molecule,
     vectors=list_of_vertices,
     vertice_size=vertice_size,
     no_vectors_define_facet=3,
     tolerance=0.1)
 
-list_of_edges,centroid_to_edge = Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
+list_of_edges,centroid_to_edge = Optimiser_functions.Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
 
 list_of_windows = facet_axes
-centroid_to_window = facet_size
+centroid_to_window = centroid_to_facet
 
 """
 Once your axes are defined this function generates the dimers.
@@ -68,7 +72,7 @@ It returns a dictionary with the following information:
     'Dimer': the stk.Molecule of the dimer
 """
 
-list_of_dimers = DimerGenerator.generate(molecule,
+list_of_dimers = dimer_calculations.DimerGenerator.generate(molecule,
         list_of_windows[0],
         -list_of_windows[0],
         displacement_distance=2*centroid_to_window-2,
@@ -77,7 +81,7 @@ list_of_dimers = DimerGenerator.generate(molecule,
         rotation_limit=120,
         rotation_step_size=30,
         slide=False,
-        radius=window_size,
+        radius=centroid_to_window,
         )
 
 """
@@ -93,7 +97,7 @@ I'm pretty sure this only works if your molecule string contains an imine. I ima
 
 """
 
-fixed_atom_set = CageOperations.fix_atom_set(list_of_dimers[0]['Dimer'],utils.remove_aldehyde('NCCN'), metal_atom=None)
+fixed_atom_set = cage.Cage.fix_atom_set(list_of_dimers[0]['Dimer'],utils.remove_aldehyde('NCCN'), metal_atom=None)
 
 """
 This is the optimisation part. It will optimise the dimer using GULP, OPLS or XTB.

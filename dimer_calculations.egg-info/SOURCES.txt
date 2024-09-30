@@ -1,0 +1,16 @@
+LICENSE
+README.md
+setup.py
+dimer_calculations/Optimiser_functions.py
+dimer_calculations/__init__.py
+dimer_calculations/cage.py
+dimer_calculations/config.py
+dimer_calculations/dimer_centroids.py
+dimer_calculations/pores.py
+dimer_calculations/read_energies_catenated_single.py
+dimer_calculations/utils.py
+dimer_calculations.egg-info/PKG-INFO
+dimer_calculations.egg-info/SOURCES.txt
+dimer_calculations.egg-info/dependency_links.txt
+dimer_calculations.egg-info/requires.txt
+dimer_calculations.egg-info/top_level.txt

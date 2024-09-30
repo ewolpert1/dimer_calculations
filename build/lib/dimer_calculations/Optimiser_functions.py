@@ -18,7 +18,6 @@ from stko._internal.optimizers.utilities import (
     mol_from_mae_file,
     move_generated_macromodel_files,
 )
-import logging
 
 GULP_PATH = config.GULP_PATH
 SCHRODINGER_PATH=config.SCHRODINGER_PATH
@@ -32,8 +31,10 @@ class Axes:
         com=mol.calculate_centre_of_mass()
         adjusted_windows = windows - com
         return adjusted_windows
+        #print("Performing ByPywindow calculation or operation.")
+        #return "Result of ByPywindow"
     def BySmarts(self,smarts_string):
-        logging.info("Performing BySmarts calculation or operation.")
+        print("Performing BySmarts calculation or operation.")
         return "Result of BySmarts"
         rdkit_mol = self.to_rdkit_mol()
         rdkit.SanitizeMol(rdkit_mol)
@@ -45,7 +46,7 @@ class Axes:
         return vectors,np.mean(distances)
     def BySmiles(self, smiles_string):
 
-        logging.info("Performing BySmiles calculation or operation.")
+        print("Performing BySmiles calculation or operation.")
 
         rdkit_mol = self.to_rdkit_mol()
         rdkit.SanitizeMol(rdkit_mol)
@@ -57,8 +58,13 @@ class Axes:
         return vectors,np.mean(distances)
 
     def ByMidpoint(self,vectors,vertice_size,no_vectors_define_facet, tolerance=0.1):
+        #if isinstance(vectors, np.ndarray):
+        #    vectors = [vectors[i] for i in range(vectors.shape[0])]
+        #print()
         if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
             vectors = vectors[0]  # Assuming the first element is the NumPy array with all vectors
+
+    # Convert numpy array of vectors into a list of numpy arrays
         vectors_list = [vectors[i] for i in range(vectors.shape[0])]
         all_distances = [utils.distance(v1, v2) for v1, v2 in combinations(vectors_list, 2)]
         min_distance = min(filter(lambda d: d > 0, all_distances))
@@ -161,6 +167,10 @@ class DimerGenerator:
                 slide_up=slide_up+1
         return dimer_list
 
+        #def test_overlap
+
+
+
 class OPLSDimer(stko.MacroModelForceField):
     def __init__(
         self,
@@ -173,6 +183,10 @@ class OPLSDimer(stko.MacroModelForceField):
         minimum_gradient: float = 0.05,
         fixed_atom_set: list[int] | None = None,
     ) -> None:
+        #self._check_params(
+        #    minimum_gradient=minimum_gradient,
+        #    maximum_iterations=maximum_iterations,
+        #)
 
         super().__init__(
             macromodel_path=macromodel_path,
@@ -233,7 +247,7 @@ class OPLSDimer(stko.MacroModelForceField):
         )
 
         # If `restricted` is ``False`` do not add a fix block.
-        if fixed_atom_set is None:
+        if fixed_atom_set==None:
             com_block = com_block.replace(
                 "!!!BLOCK_OF_FIXED_PARAMETERS_COMES_HERE!!!\n", ""
             )
@@ -454,7 +468,7 @@ class XTBDimer(stko.XTB):
 
 
 
-class GulpDimer(stko.GulpUFFOptimizer):
+class GulPDimer(stko.GulpUFFOptimizer):
 
     def __init__(
         self,
@@ -583,7 +597,7 @@ class DimerOptimizer:
                         break
 
                 if last_line.startswith("  Job Finished at "):
-                    logging.info(f"Skipping dimer {output_dir} as it is already done")
+                    print(f"Skipping dimer {output_dir} as it is already done")
                     return
 
         gulp_opt = GulpDimer(
@@ -598,22 +612,32 @@ class DimerOptimizer:
         structure = gulp_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f'{output_dir}_opt.mol')
 
-    def optimise_dimer_OPLS(dimer, output_dir, SCHRODINGER_PATH,restricted=False,timeout=None,force_field=16,maximum_iterations=2500,minimum_gradient=0.05, fixed_atom_set=None):
-        logging.info(f"optimising {output_dir}")
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            OPLS_opt = OPLSDimer(
-                macromodel_path=SCHRODINGER_PATH,
-                output_dir=output_dir,  # Change to correct path for Tmp files
-                restricted=restricted,
-                timeout=timeout,
-                force_field=force_field,
-                maximum_iterations=maximum_iterations,
-                minimum_gradient=minimum_gradient,
-                fixed_atom_set=fixed_atom_set,
-            )
-            structure = OPLS_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
-            structure.write(f'{output_dir}_opt.mol')
+    def optimise_dimer_OPLS(dimer, output_dir, SCHRODINGER_PATH, fixed_atom_set=None):
+        os.makedirs(output_dir, exist_ok=True)
+        #output_file = os.path.join(output_dir, "gulp_opt.ginout")
+        #if os.path.exists(output_file):
+        #    with open(output_file, 'r') as file:
+        #        lines = file.readlines()
+        #        # Check if the last non-empty line starts with the specified pattern
+        #        for last_line in lines[::-1]:
+        #            if last_line.strip():  # This ensures we skip any empty lines at the end of #the file
+        #                break
+#
+        #        if last_line.startswith("  Job Finished at "):
+        #            print(f"Skipping dimer {output_dir} as it is already done")
+        #            return
+
+        OPLS_opt = OPLSDimer(
+            macromodel_path=SCHRODINGER_PATH,
+            output_dir=output_dir,  # Change to correct path for Tmp files
+            #metal_FF={45: 'Rh6+3'},
+            #conjugate_gradient=True,
+            #maxcyc=500,
+            fixed_atom_set=fixed_atom_set,
+        )
+        #OPLS_opt.assign_FF(dimer)
+        structure = OPLS_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
+        structure.write(f'{output_dir}_opt.mol')
 
     def optimise_dimer_XTB(dimer, output_dir, XTB_PATH,opt_level='normal',num_cores=1,electronic_temperature=300, solvent_model='gbsa', solvent=None, solvent_grid='normal',charge=0,unpaired_electrons=0,calculate_hessian=False, fixed_atom_set=None,unlimited_memory=False):
         if not os.path.exists(output_dir):
