@@ -2,7 +2,7 @@
 
 To install the package:
 
-git clone -b refactoring --single-branch git@github.com:ewolpert1/dimer_calculations.git
+git clone -b refactoring --single-branch https://git@github.com/ewolpert1/dimer_calculations.git
 
 cd dimer_calculations
 
