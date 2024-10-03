@@ -34,7 +34,6 @@ class Axes:
         return adjusted_windows
     def BySmarts(self,smarts_string):
         logging.info("Performing BySmarts calculation or operation.")
-        return "Result of BySmarts"
         rdkit_mol = self.to_rdkit_mol()
         rdkit.SanitizeMol(rdkit_mol)
         centroid_smiles = [self.get_centroid(atom_ids=atom_ids) for atom_ids in rdkit_mol.GetSubstructMatches(query=rdkit.MolFromSmarts(smarts_string))]
