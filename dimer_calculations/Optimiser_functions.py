@@ -55,11 +55,11 @@ class Axes:
         vectors = np.array([(smile - centroid_mol) / np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles])
         return vectors,np.mean(distances)
 
-    def ByMolFile(self,mol_file)
+    def ByMolFile(self,mol_file,removed_structure='[NX3H2]')
         m = Chem.MolFromMolFile(mol_file)
         diamine_mol_block=open(mol_file,'r').read()
         diamine_mol = Chem.MolFromMolBlock(diamine_mol_block)
-        amino_smarts = '[NX3H2]'  # SMARTS pattern for primary amine nitrogen
+        amino_smarts = removed_structure  # SMARTS pattern for primary amine nitrogen
         amino_query = Chem.MolFromSmarts(amino_smarts)
         matches = diamine_mol.GetSubstructMatches(amino_query)
         rw_mol = Chem.RWMol(diamine_mol)
