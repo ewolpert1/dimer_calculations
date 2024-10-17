@@ -36,9 +36,10 @@ There are currently three different optimisers set up to work with the code; `OP
 
 The code works by first defining the axes that the molecules are displaced along. There are four options of how to define the axes:
 1. Using [Pywindow](https://github.com/marcinmiklitz/pywindow)
-2. Using Smarts string, where the axis is the centroid of the Smarts string molecule
-3. Using Smiles string, where the axis is the centroid of the Smiles string molecule
-4. Using the midpoint, where the axis is defined by the midpoint of the vectors provided.
+2. Using a Mol file, where the script loads the mol file, finds the the substructure of the cage which is that molecule, finds the centroid and calculates the axis between the centroid of the substructure and the centre of the cage.
+3. Using Smarts string, where the axis is the centroid of the Smarts string molecule
+4. Using Smiles string, where the axis is the centroid of the Smiles string molecule
+5. Using the midpoint, where the axis is defined by the midpoint of the vectors provided.
 
 Using these axes you can generate the dimers as a dictionary in which you can than optimise the structures.
 
