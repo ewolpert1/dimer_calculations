@@ -83,7 +83,6 @@ class Axes:
         matches = cage_mol.GetSubstructMatches(substructure_query)
         if not matches:
             print(f"No matches found for diamine core in entry {idx}.")
-            continue
         # Calculate centroids of the matched substructures
         match_centroids = []
         for match in matches:
