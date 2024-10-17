@@ -49,10 +49,17 @@ facet_axes,centroid_to_facet =Optimiser_functions.Axes.ByMidpoint(molecule,
     no_vectors_define_facet=3,
     tolerance=0.1)
 
-list_of_edges,centroid_to_edge = Optimiser_functions.Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
 
-list_of_windows = facet_axes
-centroid_to_window = centroid_to_facet
+list_of_arenes,centroid_to_arene = Optimiser_functions.Axes.BySmiles(molecule,smiles_string=utils.remove_aldehyde('O=Cc1cc(C=O)cc(C=O)c1'))
+
+"""
+This function is for when you have a symmetry lower than your molecule e.g. 4+6 so you can treats the windows and the arenes separately.
+
+"""
+
+list_of_windows =Optimiser_functions.Axes.RemoveCommon(molecule,facet_axes, list_of_arenes)
+
+centroid_to_window=centroid_to_arene
 
 """
 Once your axes are defined this function generates the dimers.
