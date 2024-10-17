@@ -55,6 +55,54 @@ class Axes:
         vectors = np.array([(smile - centroid_mol) / np.linalg.norm(smile - centroid_mol) for smile in centroid_smiles])
         return vectors,np.mean(distances)
 
+    def ByMolFile(self,mol_file)
+        m = Chem.MolFromMolFile(mol_file)
+        diamine_mol_block=open(mol_file,'r').read()
+        diamine_mol = Chem.MolFromMolBlock(diamine_mol_block)
+        amino_smarts = '[NX3H2]'  # SMARTS pattern for primary amine nitrogen
+        amino_query = Chem.MolFromSmarts(amino_smarts)
+        matches = diamine_mol.GetSubstructMatches(amino_query)
+        rw_mol = Chem.RWMol(diamine_mol)
+        atoms_to_remove = set()
+        for match in matches:
+            n_idx = match[0]
+            # Remove attached hydrogens
+            for neighbor in rw_mol.GetAtomWithIdx(n_idx).GetNeighbors():
+                if neighbor.GetAtomicNum() == 1:
+                    atoms_to_remove.add(neighbor.GetIdx())
+            # Mark the nitrogen atom for removal
+            atoms_to_remove.add(n_idx)
+        # Remove atoms in reverse order to avoid reindexing issues
+        for atom_idx in sorted(atoms_to_remove, reverse=True):
+            rw_mol.RemoveAtom(atom_idx)
+        diamine_core = rw_mol.GetMol()
+        diamine_core.UpdatePropertyCache()
+        # Generate the substructure query from the diamine core
+        substructure_query = diamine_core
+        # Perform substructure matching on the cage molecule
+        matches = cage_mol.GetSubstructMatches(substructure_query)
+        if not matches:
+            print(f"No matches found for diamine core in entry {idx}.")
+            continue
+        # Calculate centroids of the matched substructures
+        match_centroids = []
+        for match in matches:
+            atom_positions = np.array([conf.GetAtomPosition(idx) for idx in match])
+            centroid = get_centroid(atom_positions)
+            match_centroids.append(centroid)
+        # Remove duplicate centroids (if necessary)
+        # This can happen if the substructure matches overlap
+        unique_centroids = []
+        for centroid in match_centroids:
+            if not any(np.allclose(centroid, uc) for uc in unique_centroids):
+                unique_centroids.append(centroid)
+        # Compute vectors from cage centroid to match centroids
+        vectors = [centroid - cage_centroid for centroid in unique_centroids]
+        distances = [np.linalg.norm(vector) for vector in vectors]
+        unit_vectors = [vector / np.linalg.norm(vector) if np.linalg.norm(vector) != 0 else vector for vector in    vectors]
+        unit_vectors = np.array(unit_vectors)
+        return unit_vectors,np.mean(distances)
+
     def ByMidpoint(self,vectors,vertice_size,no_vectors_define_facet, tolerance=0.1):
         if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
             vectors = vectors[0]  # Assuming the first element is the NumPy array with all vectors
@@ -90,7 +138,37 @@ class Axes:
                 filtered_arr1.append(vec1)
 
         return np.array(filtered_arr1)
+    def remove_close_vectors(vectors, threshold=0.1):
 
+        """
+        Removes vectors from the list if the distance between any two vectors is less than the specified threshold.
+    
+        Parameters:
+        vectors (numpy array): Array of vectors.
+        threshold (float): Distance threshold below which one of the vectors will be removed.
+    
+        Returns:
+        numpy array: Array of vectors with close vectors removed.
+        """
+        # Convert vectors to a list to easily remove elements
+        filtered_vectors = vectors.tolist()
+
+        # Iterate over all vector pairs
+        i = 0
+        while i < len(filtered_vectors) - 1:
+            j = i + 1
+            while j < len(filtered_vectors):
+                # Calculate the distance between the ith and jth vectors
+                dist = np.linalg.norm(np.array(filtered_vectors[i]) - np.array(filtered_vectors[j]))
+                if dist < threshold:
+                    # Remove the jth vector if it's too close to the ith vector
+                    filtered_vectors.pop(j)
+                else:
+                    j += 1
+            i += 1
+
+        # Convert back to a numpy array before returning
+        return np.array(filtered_vectors)
 
 class DimerGenerator:
 
