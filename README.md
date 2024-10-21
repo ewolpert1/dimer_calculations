@@ -19,8 +19,7 @@ conda activate your-env-name
 3. Clone the package
 
 ```
-pip install git+https://git@github.com/ewolpert1/dimer_calculations.git@refactoring
-NOT git clone -b refactoring --single-branch https://git@github.com/ewolpert1/dimer_calculations.git
+pip install git+ssh://git@github.com/ewolpert1/dimer_calculations.git@refactoring
 ```
 
 4. Install the package
