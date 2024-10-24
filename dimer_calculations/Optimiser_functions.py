@@ -214,9 +214,9 @@ class DimerGenerator:
         dimer_list = []
         for i in range(0, int(displacement/displacement_step_size)):
             if slide:
-                displaced_centers=utils.find_integer_points(axes, displacement_distance+i, radius + 1)
+                displaced_centers=utils.find_integer_points(axes_1, displacement_distance+i, radius + 1)
             else:
-                displaced_centers= [(displacement_distance+i)*axes]
+                displaced_centers= [(displacement_distance+i)*axes_1]
             slide_up=0
             for center in displaced_centers:
                 rot_by=0
