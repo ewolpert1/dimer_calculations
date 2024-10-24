@@ -195,7 +195,6 @@ class DimerGenerator:
         molecule_2,
         axes_1: np.ndarray,
         axes_2: np.ndarray,
-        second_cage_orientation: np.ndarray,
         displacement_distance: float,
         displacement: float = 7,
         displacement_step_size: float = 1,
@@ -207,7 +206,9 @@ class DimerGenerator:
 
         cage = stk.BuildingBlock.init_from_molecule(self)
         origin = cage.get_centroid()
-        guest_cage=cage.with_rotation_between_vectors(second_cage_orientation,axes_2, origin)
+        cage_2 = stk.BuildingBlock.init_from_molecule(molecule_2)
+        origin_2 = cage_2.get_centroid()
+        guest_cage=cage_2.with_rotation_between_vectors(-axes_1,axes_2, origin_2)
         rotated_vectors=utils.generate_rotated_vectors(axes_1, rotation_limit/rotation_step_size, 30)
         perpendicular_vector=utils.calculate_perpendicular_vector(axes_1)
 
