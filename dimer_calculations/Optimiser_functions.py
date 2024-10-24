@@ -173,7 +173,9 @@ class DimerGenerator:
 
     def __init__(
         self,
-        axes: np.ndarray,
+        molecule_2,
+        axes_1: np.ndarray,
+        axes_2: np.ndarray,
         displacement: float = 7,
         displacement_step_size: float = 1,
         rotation_limit: float = 120,
@@ -190,7 +192,9 @@ class DimerGenerator:
         self._slide = slide
 
     def generate(self,
-        axes: np.ndarray,
+        molecule_2,
+        axes_1: np.ndarray,
+        axes_2: np.ndarray,
         second_cage_orientation: np.ndarray,
         displacement_distance: float,
         displacement: float = 7,
@@ -203,9 +207,9 @@ class DimerGenerator:
 
         cage = stk.BuildingBlock.init_from_molecule(self)
         origin = cage.get_centroid()
-        guest_cage=cage.with_rotation_between_vectors(second_cage_orientation,axes, origin)
-        rotated_vectors=utils.generate_rotated_vectors(axes, rotation_limit/rotation_step_size, 30)
-        perpendicular_vector=utils.calculate_perpendicular_vector(axes)
+        guest_cage=cage.with_rotation_between_vectors(second_cage_orientation,axes_2, origin)
+        rotated_vectors=utils.generate_rotated_vectors(axes_1, rotation_limit/rotation_step_size, 30)
+        perpendicular_vector=utils.calculate_perpendicular_vector(axes_1)
 
         dimer_list = []
         for i in range(0, int(displacement/displacement_step_size)):
