@@ -22,13 +22,6 @@ conda activate your-env-name
 pip install git+ssh://git@github.com/ewolpert1/dimer_calculations.git@refactoring
 ```
 
-4. Install the package
-
-```
-cd dimer_calculations
-pip install .
-```
-
 # Usage
 
 There are currently three different optimisers set up to work with the code; `OPLS` through [Macromodel](https://www.schrodinger.com/platform/products/macromodel/), [GULP](https://gulp.curtin.edu.au/), and [XTB](https://xtb-docs.readthedocs.io/en/latest/optimization.html).
