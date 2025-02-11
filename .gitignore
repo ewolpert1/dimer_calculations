@@ -1,0 +1,9 @@
+.coverage
+dimer_calculations/_version.py
+
+.ruff_cache/
+.benchmarks/
+*.egg-info/
+*.egg
+__pycache__/
+dimer_calculations/dimer_calculations/__pycache__
