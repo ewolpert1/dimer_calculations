@@ -1,13 +1,11 @@
-import numpy as np
 import re
 import shutil
 import subprocess
 import os
 import stk
-import sys
-from .pores import *
+from . import pores
 from . import utils
-from .dimer_centroids import *
+from . import dimer_centroids
 from . import config
 import glob
 
@@ -15,8 +13,7 @@ def find_last_segment_in_folder(folder_name):
     parts = folder_name.split('_')
     if len(parts) >= 3:
         return f"{parts[-1]}"
-    ret
-    
+
 SCHRODINGER_PATH=config.SCHRODINGER_PATH
 
 
@@ -41,14 +38,14 @@ class OPLSEnergyReader:
         merge_file_path = os.path.join(self.destination_folder, "merge.txt")
         with open(merge_file_path, "w+") as merge:
             merge.write(f'export SCHRODINGER={SCHRODINGER_PATH}\n$SCHRODINGER/utilities/structcat ')
-        all_minima = []  
+        all_minima = []
         for dirpath, dirnames, filenames in os.walk(self.cage_name_mae):
             if dirpath == self.destination_folder:
                 continue
             folder_name = os.path.basename(dirpath)  # Extract folder name
             if folder_name.startswith(self.cage_name_mae):
                 last_segment = find_last_segment_in_folder(folder_name)
-                if (last_segment== None):
+                if last_segment is None:
                     continue
                 for filename in filenames:
                     if filename.endswith(".log"):  # Identify log files
@@ -66,14 +63,13 @@ class OPLSEnergyReader:
         energy_counter = 0
         structure_name = None
         filepath = os.path.join(dirpath, filename)
-        output_filename = os.path.join(dirpath, "energies.txt")
 
-        with open(output_filename, "w+") as input1, open(filepath, 'r') as f:
+        with open(filepath, 'r') as f:
             lines = f.readlines()
             for i, line in enumerate(lines):
                 if "Structure name, if any, appears on next line:" in line:
                     structure_name = lines[i+1].strip()
-                
+
                 elif 'Total Energy' in line:
                     energy_counter += 1
                     if energy_counter % 2 == 0:
@@ -83,7 +79,7 @@ class OPLSEnergyReader:
                             minima_for_file.append((current_energy, structure_name))
                             structure_name = None
                             energy_counter = 0
-            
+
             self.process_structures(minima_for_file, dirpath, merge_file_path, all_minima)
 
 
@@ -94,14 +90,14 @@ class OPLSEnergyReader:
 
         for energy, structure_name in sorted_minima:
             path, one_mol = self.generate_structure_path(structure_name)
-            centroids = return_centroids(path)
+            centroids = dimer_centroids.return_centroids(path)
             cage_dimer = stk.BuildingBlock.init_from_file(path)
-            dimer = two_pores(cage_dimer, centroids[0], centroids[1])
+            dimer = pores.two_pores(cage_dimer, centroids[0], centroids[1])
             cage = stk.BuildingBlock.init_from_file(f"{one_mol}.mol")
-            pore_cage = one_pore(cage)
+            pore_cage = pores.one_pore(cage)
 
             cutoff = 0.1 if 'aa' in structure_name else 0.2
-            catenated = check_catenane(pore_cage, dimer, cutoff)
+            catenated = pores.check_catenane(pore_cage, dimer, cutoff)
 
             if not catenated:
                 if reference_energy is None:
@@ -137,7 +133,7 @@ class OPLSEnergyReader:
         # Construct the final path
         path = os.path.join(self.cage_name, f"{self.cage_name}_{second_part}", f"{structure_name}.mol")
         one_mol = f'cages/{self.cage_name[4:]}'
-        print(one_mol,path)    
+        print(one_mol,path)
         return path,one_mol
 
     def run_calc(self):
@@ -154,7 +150,7 @@ class GULPEnergyReader:
         self.current_directory = current_directory
         self.destination_folder_end = destination_folder_end
         self.destination_folder = os.path.join(destination_folder_end, cage_name)
-    
+
     def read_energy(self, output_file='Constrained_energies_GULP.txt'):
         if not os.path.exists(self.destination_folder_end):
             os.makedirs(self.destination_folder_end)
@@ -177,7 +173,7 @@ class GULPEnergyReader:
         #            f.write(f"{folder_name}, {energy}\n")
 
 
-        
+
 
     def process_out_file(self, folder_name,filename,all_minima):
         with open(filename, 'r') as f:
@@ -188,25 +184,25 @@ class GULPEnergyReader:
                         if (parts[3][0]!="*"):
                             energy = float(parts[3])  # Assuming the energy value is always in the 4th position
                             all_minima.append((energy,folder_name))
-                    break 
+                    break
 
 
 
     def process_structures(self,minima):
         sorted_minima = sorted(minima, key=lambda x: x[0])
         reference_energy = None
-        
+
         low_eng =[]
         for energy, structure_name in sorted_minima:
             path, one_mol = self.generate_structure_path(structure_name)
-            centroids = return_centroids(path)
+            centroids = dimer_centroids.return_centroids(path)
             cage_dimer = stk.BuildingBlock.init_from_file(path)
-            dimer = two_pores(cage_dimer, centroids[0], centroids[1])
+            dimer = pores.two_pores(cage_dimer, centroids[0], centroids[1])
             cage = stk.BuildingBlock.init_from_file(f"{one_mol}.mol")
-            pore_cage = one_pore(cage)
+            pore_cage = pores.one_pore(cage)
 
             cutoff = 0.1 if 'aa' in structure_name else 0.2
-            catenated = check_catenane(pore_cage, dimer, cutoff)
+            catenated = pores.check_catenane(pore_cage, dimer, cutoff)
 
             if not catenated:
                 if reference_energy is None:
@@ -216,7 +212,6 @@ class GULPEnergyReader:
                 #selected_structures.append((energy, structure_name))
                 if reference_energy is not None:
                     low_eng.append((energy, structure_name))
-                    dst = os.path.join(self.destination_folder, os.path.basename(path))
                     shutil.copy2(path, self.destination_folder)
 
     def generate_structure_path(self,structure_name):
@@ -224,7 +219,7 @@ class GULPEnergyReader:
         # Construct the final path
         path =  f"{structure_name}_opt.mol"
         one_mol = f'cages/{self.cage_name[4:]}'
-        print(one_mol,path)    
+        print(one_mol,path)
         return path,one_mol
 
 class XTBEnergyReader:
@@ -234,7 +229,7 @@ class XTBEnergyReader:
         self.current_directory = current_directory
         self.destination_folder_end = destination_folder_end
         self.destination_folder = os.path.join(destination_folder_end, cage_name)
-    
+
     def read_energy(self, output_file='Constrained_energies_XTB.txt'):
         if not os.path.exists(self.destination_folder_end):
             os.makedirs(self.destination_folder_end)
@@ -259,12 +254,9 @@ class XTBEnergyReader:
             for energy, structure_name in sorted_minima:
                 energies_file.write(f"{energy}, {structure_name}\n")
         return all_minima
-        #    if energy is not None:
-        #        with open(output_file, 'a') as f:  # Open in append mode
-        #            f.write(f"{folder_name}, {energy}\n")
 
 
-        
+
 
     def process_out_file(self, folder_name,filename,all_minima):
         with open(filename, 'r') as file:
@@ -284,20 +276,20 @@ class XTBEnergyReader:
     def process_structures(self,minima):
         sorted_minima = sorted(minima, key=lambda x: x[0])
         reference_energy = None
-        
+
         low_eng =[]
         for energy, structure_name in sorted_minima:
             path, one_mol = self.generate_structure_path(structure_name)
             path_new=f"{structure_name}.mol"
             subprocess.run(["obabel", path, "-O", path_new, "-x3"], check=True)
-            centroids = return_centroids(path_new)
+            centroids = dimer_centroids.return_centroids(path_new)
             cage_dimer = stk.BuildingBlock.init_from_file(path_new)
-            dimer = two_pores(cage_dimer, centroids[0], centroids[1])
+            dimer = pores.two_pores(cage_dimer, centroids[0], centroids[1])
             cage = stk.BuildingBlock.init_from_file(f"{one_mol}.mol")
-            pore_cage = one_pore(cage)
+            pore_cage = pores.one_pore(cage)
 
             cutoff = 0.1 if 'aa' in structure_name else 0.2
-            catenated = check_catenane(pore_cage, dimer, cutoff)
+            catenated = pores.check_catenane(pore_cage, dimer, cutoff)
 
             if not catenated:
                 if reference_energy is None:
@@ -314,5 +306,5 @@ class XTBEnergyReader:
         # Construct the final path
         path =  f"{structure_name}.xtbopt.mol"
         one_mol = f'cages/{self.cage_name[4:]}'
-        print(one_mol,path)    
+        print(one_mol,path)
         return path,one_mol

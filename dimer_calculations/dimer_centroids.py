@@ -101,8 +101,6 @@ def return_centroids(mol_file):
 
 # Parsing atom and bond data
     atom_data, bond_data = parse_atom_and_bond_data(mol_data)
-    #print(atom_data)
-    #print(bond_data)
 
 # Separating the molecules
     molecules = separate_molecules(atom_data, bond_data)
