@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dimer_calculations"
+maintainers = [
+  { name = "Emma H. Wolpert"},
+]
+dependencies = [
+  "stk",
+  "stko",
+  "pywindowx",
+  "PoreMapper",
+  "numpy>=1.18.0",
+  "scipy>=1.4.0",
+]
+requires-python = ">=3.11"
+dynamic = ["version"]
+readme = "README.md"
+
+[project.optional-dependencies]
+dev = [
+  "ruff",
+  "mypy",
+  "pip-tools",
+  # TODO: Remove pin when https://github.com/TvoroG/pytest-lazy-fixture/issues/65 is resolved.
+  # pytest-lazy-fixture 0.6.0 is incompatible with pytest 8.0.0
+  "pytest<8",
+  "pytest-benchmark",
+  "pytest-datadir",
+  "pytest-lazy-fixture",
+  "pytest-cov",
+]
+
+[project.urls]
+github = "https://github.com/ewolpert1/dimer_calculations"
+
+[tool.setuptools_scm]
+write_to = "dimer_calculations/_version.py"
+
+[tool.setuptools.packages.find]
+where = [
+  # list of folders that contain the packages (["."] by default)
+  ".",
+]
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "ANN101",
+  "ANN102",
+  "ANN401",
+  "COM812",
+  "ISC001",
+  "FBT001",
+  "FBT002",
+  "G004",
+]
+
+[tool.mypy]
+show_error_codes = true
+implicit_optional = false
+warn_no_return = true
+strict_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+  'rdkit.*',
+  'stk.*',
+  'pore_mapper.*',
+  'pywindow.*',
+  'scipy.*',
+  'sklearn.*',
+  'networkx.*',
+]
+ignore_missing_imports = true
