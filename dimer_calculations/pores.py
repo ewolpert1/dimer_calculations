@@ -1,7 +1,8 @@
 import pore_mapper as pm
 
+
 def two_pores(
-    #write_name,
+    # write_name,
     stk_molecule,
     centroid1,
     centroid2,
@@ -19,7 +20,7 @@ def two_pores(
     pore_distances = []
     centroids = (centroid1, centroid2)
 
-    for centroid in (centroids):
+    for centroid in centroids:
         # Define calculator object.
         calculator = pm.Inflater(bead_sigma=1.2, centroid=centroid)
 
@@ -28,7 +29,8 @@ def two_pores(
         pore = final_result.pore
         pore_distances.append(pore.get_mean_distance_to_com())
 
-    return (pore_distances)
+    return pore_distances
+
 
 def one_pore(
     stk_molecule,
@@ -50,14 +52,14 @@ def one_pore(
     pore = final_result.pore
     pore_distances.append(pore.get_mean_distance_to_com())
 
-    return (pore_distances)
+    return pore_distances
 
-def check_catenane(one_pore,two_pore,cutoff=0.2):
-    if (two_pore[0]<(one_pore[0]-cutoff) and two_pore[1]<(one_pore[0]-cutoff)):
-        catenane=True
+
+def check_catenane(one_pore, two_pore, cutoff=0.2):
+    if two_pore[0] < (one_pore[0] - cutoff) and two_pore[1] < (
+        one_pore[0] - cutoff
+    ):
+        catenane = True
     else:
-        catenane=False
+        catenane = False
     return catenane
-
-
-
