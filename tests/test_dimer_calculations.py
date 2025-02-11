@@ -4,7 +4,7 @@ import pathlib
 
 import stk
 
-from dimer_calculations import Optimiser_functions, utils
+from dimer_calculations import Optimiser_functions, pores, utils
 
 
 def main() -> None:
@@ -46,6 +46,7 @@ def main() -> None:
         slide=False,
     )
     print(len(list_of_dimers))
+    print(pores.get_centroids(list_of_dimers[0]["Dimer"]))
 
 
 if __name__ == "__main__":

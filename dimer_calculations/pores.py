@@ -89,6 +89,23 @@ def one_com_distance(stk_molecule: stk.Molecule) -> float:
     )
 
 
+def get_centroids(stk_molecule: stk.Molecule) -> list[np.ndarray]:
+    """Get centroids of molecule."""
+    graph = stko.Network.init_from_molecule(stk_molecule)
+
+    # A series of graphs still connected.
+    connected_graphs = graph.get_connected_components()
+
+    centroids = []
+    for cg in connected_graphs:
+        # Get atoms from nodes.
+        atoms = list(cg)
+        atom_ids = tuple(i.get_id() for i in atoms)
+        centroids.append(stk_molecule.get_centroid(atom_ids))
+
+    return centroids
+
+
 def check_catenane(
     one_pore: float,
     two_pore: list[float],
