@@ -36,4 +36,3 @@ The code works by first defining the axes that the molecules are displaced along
 Using these axes you can generate the dimers as a dictionary in which you can than optimise the structures.
 
 Example scripts for using both `OPLS` and `XTB` are provided in the example_scripts folder labelled G17.py and WaaF-1.py respectively.
-
