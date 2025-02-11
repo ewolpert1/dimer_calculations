@@ -1,4 +1,5 @@
-# utils.py
+"""Utilities."""
+
 import os
 import subprocess
 
@@ -212,11 +213,10 @@ def calculate_perpendicular_vector(vector):
     """
     if len(vector) == 2:  # Two-dimensional case
         return np.array([-vector[1], vector[0]])
-    elif len(vector) == 3:  # Three-dimensional case
+    if len(vector) == 3:  # Three-dimensional case
         x, y, z = vector
         return np.array([y, -x, 0])
-    else:
-        raise ValueError("The input vector must be 2D or 3D.")
+    raise ValueError("The input vector must be 2D or 3D.")
 
 
 def create_rotated_guest(
