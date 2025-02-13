@@ -14,7 +14,7 @@ setup(
       "pywindowx",
       "PoreMapper",
       "numpy>=1.18.0",
-      "scipy>=1.4.0",
+      "scipy>=1.4.0"
     #install_requires=[
     #    'atomlite==4.4.2',
     #    'contourpy==1.2.1',
