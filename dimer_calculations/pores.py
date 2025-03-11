@@ -107,11 +107,13 @@ def get_centroids(stk_molecule: stk.Molecule) -> list[np.ndarray]:
 
 
 def check_catenane(
-    one_pore: float,
+    one_pore: float | list[float], 
     two_pore: list[float],
     cutoff: float = 0.2,
 ) -> bool:
     """Check if two cages are catenated."""
+    if isinstance(one_pore, list):
+        one_pore = one_pore[0] 
     return bool(
         two_pore[0] < (one_pore - cutoff) and two_pore[1] < (one_pore - cutoff)
     )
