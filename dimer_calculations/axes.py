@@ -122,7 +122,7 @@ def by_midpoint(
     vectors: np.ndarray,
     vertice_size: float,
     no_vectors_define_facet: int,
-    tolerance: float = 0.1,
+    tolerance: float = 0.1, #The tolerance is a parameter that sets the acceptable margin of variation in the distances between vertices in a given combination – including slight irregularities – when determining whether they form a valid facet. For example if the distance between two vertices on a facet is 5A, and the tolerance is 0.1, then any vector which is less than 5.5A is considered to make up the facet. 
 ) -> np.ndarray:
     """Get axes using the midpoint of given vectors."""
     if isinstance(vectors, list) and isinstance(vectors[0], np.ndarray):
