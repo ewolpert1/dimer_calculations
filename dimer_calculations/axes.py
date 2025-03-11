@@ -118,6 +118,7 @@ def by_smiles(
 
 
 def by_midpoint(
+    molecule: stk.Molecule,
     vectors: np.ndarray,
     vertice_size: float,
     no_vectors_define_facet: int,
