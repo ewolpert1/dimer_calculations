@@ -19,7 +19,7 @@ conda activate your-env-name
 3. Clone the package
 
 ```
-pip install git+ssh://git@github.com/ewolpert1/dimer_calculations.git@main
+pip install git+https://github.com/ewolpert1/dimer_calculations.git@main
 ```
 
 # Usage
