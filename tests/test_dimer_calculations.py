@@ -1,6 +1,5 @@
-"""A test script."""
+"""Smoke tests for dimer generation."""
 
-import logging
 import pathlib
 
 import stk
@@ -11,8 +10,8 @@ from dimer_calculations.pores import get_centroids
 from dimer_calculations.utils import remove_aldehyde
 
 
-def main() -> None:
-    """Run script."""
+def test_generate_dimer() -> None:
+    """Generate a non-overlapping molecular dimer."""
     script_dir = pathlib.Path(__file__).parent.absolute()
 
     filename = script_dir / ".." / "cages" / "CC1.mol"
@@ -22,7 +21,8 @@ def main() -> None:
     list_of_vertices, vertice_size = by_smiles(
         molecule=molecule, smiles_string=remove_aldehyde("NCCN")
     )
-    facet_axes, centroid_to_facet = by_midpoint(
+    facet_axes, _centroid_to_facet = by_midpoint(
+        molecule=molecule,
         vectors=list_of_vertices,
         vertice_size=vertice_size,
         no_vectors_define_facet=3,
@@ -49,13 +49,9 @@ def main() -> None:
         axes_2=list_of_windows[0],
         displacement_distance=centroid_to_window + centroid_to_window - 2,
     )
-    logging.info(len(list_of_dimers))
-    logging.info(get_centroids(list_of_dimers[0]["Dimer"]))
+    assert list_of_dimers
+    assert len(get_centroids(list_of_dimers[0]["Dimer"])) == 2
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-    )
-    main()
+    test_generate_dimer()

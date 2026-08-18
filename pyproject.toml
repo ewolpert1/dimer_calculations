@@ -4,8 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dimer_calculations"
+description = "Generate and optimise molecular dimers along user-defined molecular axes."
+authors = [
+  { name = "Emma H. Wolpert", email = "e.wolpert@ucl.ac.uk"},
+]
 maintainers = [
-  { name = "Emma H. Wolpert"},
+  { name = "Emma H. Wolpert", email = "e.wolpert@ucl.ac.uk"},
 ]
 dependencies = [
   "stk",
@@ -13,14 +17,35 @@ dependencies = [
   "pywindowx",
   "PoreMapper",
   "numpy>=1.18.0",
+  "rdkit",
+  "scikit-learn",
   "scipy>=1.4.0",
 ]
 requires-python = ">=3.11"
 dynamic = ["version"]
 readme = "README.md"
+license = { file = "LICENSE" }
+keywords = [
+  "molecular dimers",
+  "molecular simulation",
+  "metal-organic cages",
+  "porous organic cages",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 
 [project.optional-dependencies]
+notebook = [
+  "jupyterlab",
+  "py3Dmol",
+]
 dev = [
+  "build",
   "ruff",
   "mypy",
   "pip-tools",
@@ -34,7 +59,9 @@ dev = [
 ]
 
 [project.urls]
-github = "https://github.com/ewolpert1/dimer_calculations"
+Homepage = "https://github.com/ewolpert1/dimer_calculations"
+Repository = "https://github.com/ewolpert1/dimer_calculations"
+Issues = "https://github.com/ewolpert1/dimer_calculations/issues"
 
 [tool.setuptools_scm]
 write_to = "dimer_calculations/_version.py"
@@ -44,6 +71,7 @@ where = [
   # list of folders that contain the packages (["."] by default)
   ".",
 ]
+exclude = ["tests*"]
 
 [tool.ruff]
 line-length = 79
@@ -51,15 +79,19 @@ line-length = 79
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "ANN101",
-  "ANN102",
   "ANN401",
   "COM812",
+  "CPY001",
+  "D203",
+  "D213",
   "ISC001",
   "FBT001",
   "FBT002",
   "G004",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR2004", "S101"]
 
 [tool.mypy]
 show_error_codes = true

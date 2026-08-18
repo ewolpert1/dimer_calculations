@@ -1,37 +1,94 @@
 # Dimer calculations
 
-A toolkit to help produce and calculate the energy of dimers of molecules. This code was originally built with cages in mind but can be used for more general cases. The creation of dimers relies on [stk](https://stk.readthedocs.io/en/stable/), which comes with the pip install
+`dimer_calculations` is a Python toolkit for generating molecular dimers and
+preparing them for energy calculations. It was developed for porous organic
+and metal-organic cages, but its axis-based dimer generation can be applied to
+other molecules.
 
-# Installation
+The package can:
 
-The code can be installed following these steps:
+- define molecular axes from SMARTS, SMILES, molecular fragments, or
+  geometric midpoints;
+- generate displaced, rotated, and optionally laterally shifted dimers;
+- reject configurations with atomic overlap or cage catenation; and
+- optimise accepted dimers with xTB, GULP, or MacroModel.
 
-1. Create a `conda` environement:
+## Installation
+
+Python 3.11 or newer is required. We recommend a clean Conda environment:
+
+```bash
+conda create --name dimer-calculations python=3.11
+conda activate dimer-calculations
+python -m pip install .
 ```
-conda create --name your-env-name python=3.11
+
+To run the example notebook, install the notebook dependencies as well:
+
+```bash
+python -m pip install ".[notebook]"
+jupyter lab dimer_calculations.ipynb
 ```
 
-2. Activate the environment:
-```
-conda activate your-env-name
-```
+Once version 1.0.0 has been released, it can also be installed directly from
+GitHub:
 
-3. Clone the package
-
-```
-pip install git+https://github.com/ewolpert1/dimer_calculations.git@main
+```bash
+python -m pip install \
+  "git+https://github.com/ewolpert1/dimer_calculations.git@v1.0.0"
 ```
 
-# Usage
+## External optimisation programs
 
-There are currently three different optimisers set up to work with the code; `OPLS` through [Macromodel](https://www.schrodinger.com/platform/products/macromodel/), [GULP](https://gulp.curtin.edu.au/), and [XTB](https://xtb-docs.readthedocs.io/en/latest/optimization.html).
+Dimer generation and screening do not require an external optimiser. Energy
+optimisation requires at least one of the following separately installed
+programs:
 
-The code works by first defining the axes that the molecules are displaced along. There are four options of how to define the axes:
-1. Using a Mol file, where the script loads the mol file, finds the the substructure of the cage which is that molecule, finds the centroid and calculates the axis between the centroid of the substructure and the centre of the cage.
-2. Using Smarts string, where the axis is the centroid of the Smarts string molecule
-3. Using Smiles string, where the axis is the centroid of the Smiles string molecule
-4. Using the midpoint, where the axis is defined by the midpoint of the vectors provided.
+- [xTB](https://xtb-docs.readthedocs.io/);
+- [GULP](https://gulp.curtin.edu.au/); or
+- [MacroModel](https://www.schrodinger.com/platform/products/macromodel/).
 
-Using these axes you can generate the dimers as a dictionary in which you can than optimise the structures.
+The package locates `xtb` and `gulp` automatically when they are on `PATH`.
+Otherwise, set the appropriate environment variable before starting Python:
 
-An example notebook for how to use the package is provided in the `dimer_calculations.ipynb` file.
+```bash
+export XTB_PATH=/path/to/xtb
+export GULP_PATH=/path/to/gulp
+export SCHRODINGER_PATH=/path/to/schrodinger
+```
+
+The resolved values are available as `XTB_PATH`, `GULP_PATH`, and
+`SCHRODINGER_PATH` from `dimer_calculations.config`. Optimiser functions also
+accept executable paths directly.
+
+## Basic workflow
+
+1. Load an `stk.Molecule` and place its centroid at the origin.
+2. Use `dimer_calculations.axes` to define the molecular axes of interest.
+3. Pass two molecules and a pair of axes to
+   `dimer_calculations.dimer_generator.DimerGenerator`.
+4. Screen the generated structures for overlap and, for cages, catenation.
+5. Pass accepted structures to an optimiser in
+   `dimer_calculations.optimiser_functions`.
+
+The complete worked example is provided in
+[`dimer_calculations.ipynb`](dimer_calculations.ipynb). The example molecular
+structures are in [`cages/`](cages/).
+
+## Development and tests
+
+```bash
+python -m pip install ".[dev]"
+python -m pytest
+```
+
+The smoke test generates a dimer without invoking an external optimiser.
+
+## Citation
+
+Citation metadata are provided in [`CITATION.cff`](CITATION.cff). When using an
+archived release, cite the DOI for that specific software version.
+
+## Licence
+
+This project is released under the [MIT Licence](LICENSE).
