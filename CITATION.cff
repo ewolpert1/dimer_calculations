@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the archived software release and the associated publication."
+type: software
+title: "dimer_calculations: generation and optimisation of molecular dimers"
+version: 1.0.0
+date-released: 2026-08-18
+license: MIT
+authors:
+  - family-names: Wolpert
+    given-names: Emma H.
+    email: e.wolpert@ucl.ac.uk
+    affiliation: University College London
+  - family-names: Tarzia
+    given-names: Andrew
+    affiliation: Politecnico di Torino
+repository-code: "https://github.com/ewolpert1/dimer_calculations"
+url: "https://github.com/ewolpert1/dimer_calculations"
+keywords:
+  - molecular dimers
+  - metal-organic cages
+  - porous organic cages
+  - molecular simulation
+  - crystal packing
+abstract: >-
+  A Python toolkit for generating molecular dimers along user-defined
+  molecular axes, rejecting overlapping or catenated configurations, and
+  preparing the resulting structures for optimisation with xTB, GULP, or
+  MacroModel.
