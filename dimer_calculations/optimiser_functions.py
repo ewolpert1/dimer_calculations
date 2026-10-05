@@ -2,18 +2,23 @@
 
 import logging
 import os
+import pathlib
 import shutil
 import uuid
 from itertools import combinations
 from uuid import uuid4
 
+import numpy as np
 import stk
 import stko
+from rdkit import Chem
 from stko._internal.optimizers.utilities import (
     get_metal_atoms,
     mol_from_mae_file,
     move_generated_macromodel_files,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OPLSDimer(stko.MacroModelForceField):
@@ -423,6 +428,191 @@ class GulpDimer(stko.GulpUFFOptimizer):
             f.write(output_section)
 
 
+class OpenMMDimer:
+    """Optimise a molecule with an OpenFF force field in OpenMM.
+
+    This needs the ``openmm``, ``openff-toolkit`` and
+    ``openff-interchange`` packages, from conda-forge, but no external
+    program.
+    """
+
+    def __init__(  # noqa: PLR0913
+        self,
+        *,
+        force_field: str = "openff_unconstrained-2.3.0.offxml",
+        output_dir: str | None = None,
+        max_iterations: int = 0,
+        tolerance: float = 10.0,
+        platform: str = "CPU",
+        num_cores: int = 1,
+    ) -> None:
+        """Initialise the optimiser.
+
+        Parameters
+        ----------
+        force_field:
+            An OpenFF force field. Sage 2.3.0, the default, assigns
+            partial charges with NAGL in seconds. Fixed atoms need a force
+            field without constraints, such as the default.
+
+        output_dir:
+            Directory for ``openmm_opt.out``, which records the energy
+            before and after optimisation. Nothing is written if ``None``.
+
+        max_iterations:
+            Upper limit on L-BFGS iterations; ``0`` runs until converged.
+
+        tolerance:
+            The optimisation stops once the root-mean-square force falls
+            below this value, in kJ/mol/nm.
+
+        platform:
+            The OpenMM platform, for example ``"CPU"`` or ``"CUDA"``.
+
+        num_cores:
+            Threads used by the CPU platform.
+
+        """
+        self._force_field = force_field
+        self._output_dir = output_dir
+        self._max_iterations = max_iterations
+        self._tolerance = tolerance
+        self._platform = platform
+        self._num_cores = num_cores
+
+    def optimize(
+        self,
+        mol: stk.Molecule,
+        fixed_atom_set: list[int] | None = None,
+    ) -> stk.Molecule:
+        """Optimise ``mol``.
+
+        Parameters
+        ----------
+        mol:
+            The molecule to be optimised.
+
+        fixed_atom_set:
+            Ids of atoms that keep their positions, counted from 0 as in
+            ``mol`` (``Cage.fix_atom_set`` returns these).
+
+        Returns
+        -------
+        stk.Molecule
+            The optimised molecule.
+
+        """
+        from openff.interchange import Interchange  # noqa: PLC0415
+        from openff.toolkit import (  # noqa: PLC0415
+            ForceField,
+            Molecule,
+            Topology,
+        )
+        from openmm import openmm, unit  # noqa: PLC0415
+
+        num_atoms = mol.get_num_atoms()
+        fixed = set(fixed_atom_set or [])
+        outside = sorted(i for i in fixed if not 0 <= i < num_atoms)
+        if outside:
+            msg = (
+                f"fixed_atom_set has ids outside 0-{num_atoms - 1}: {outside}"
+            )
+            raise ValueError(msg)
+
+        # One OpenFF molecule per cage; ``order[k]`` is the atom id of
+        # OpenMM particle ``k``.
+        rdkit_mol = mol.to_rdkit_mol()
+        Chem.SanitizeMol(rdkit_mol)
+        mapping: list[tuple[int, ...]] = []
+        fragments = Chem.GetMolFrags(
+            rdkit_mol, asMols=True, fragsMolAtomMapping=mapping
+        )
+        order = [atom_id for atom_ids in mapping for atom_id in atom_ids]
+        topology = Topology.from_molecules(
+            [
+                Molecule.from_rdkit(
+                    fragment,
+                    allow_undefined_stereo=True,
+                    hydrogens_are_explicit=True,
+                )
+                for fragment in fragments
+            ]
+        )
+        system = Interchange.from_smirnoff(
+            force_field=ForceField(self._force_field), topology=topology
+        ).to_openmm_system()
+        # OpenMM does not move particles with zero mass.
+        for particle, atom_id in enumerate(order):
+            if atom_id in fixed:
+                system.setParticleMass(particle, 0.0)
+
+        properties = (
+            {"Threads": str(self._num_cores)}
+            if self._platform == "CPU"
+            else {}
+        )
+        context = openmm.Context(
+            system,
+            openmm.VerletIntegrator(1.0 * unit.femtoseconds),
+            openmm.Platform.getPlatformByName(self._platform),
+            properties,
+        )
+        context.setPositions(mol.get_position_matrix()[order] * unit.angstrom)
+        initial = context.getState(getEnergy=True).getPotentialEnergy()
+        openmm.LocalEnergyMinimizer.minimize(
+            context,
+            self._tolerance * unit.kilojoule_per_mole / unit.nanometer,
+            self._max_iterations,
+        )
+        state = context.getState(
+            getEnergy=True, getPositions=True, getForces=True
+        )
+
+        positions = np.empty((num_atoms, 3))
+        positions[order] = state.getPositions(asNumpy=True).value_in_unit(
+            unit.angstrom
+        )
+        if self._output_dir is not None:
+            forces = state.getForces(asNumpy=True).value_in_unit(
+                unit.kilojoule_per_mole / unit.nanometer
+            )
+            free = [
+                k for k, atom_id in enumerate(order) if atom_id not in fixed
+            ]
+            rms_force = float(np.sqrt(np.mean(forces[free] ** 2)))
+            final = state.getPotentialEnergy()
+            self._write_output(
+                num_atoms=num_atoms,
+                num_fixed=len(fixed),
+                initial=initial.value_in_unit(unit.kilojoule_per_mole),
+                final=final.value_in_unit(unit.kilojoule_per_mole),
+                rms_force=rms_force,
+            )
+        return mol.with_position_matrix(positions)
+
+    def _write_output(
+        self,
+        *,
+        num_atoms: int,
+        num_fixed: int,
+        initial: float,
+        final: float,
+        rms_force: float,
+    ) -> None:
+        output_dir = pathlib.Path(str(self._output_dir))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        lines = [
+            f"force_field: {self._force_field}",
+            f"atoms: {num_atoms}",
+            f"fixed_atoms: {num_fixed}",
+            f"initial_energy_kJ_mol: {initial:.6f}",
+            f"final_energy_kJ_mol: {final:.6f}",
+            f"rms_force_free_atoms_kJ_mol_nm: {rms_force:.4f}",
+            f"tolerance_kJ_mol_nm: {self._tolerance}",
+        ]
+        (output_dir / "openmm_opt.out").write_text("\n".join(lines) + "\n")
+
+
 def optimise_dimer_gulp(dimer, output_dir, gulp_path, fixed_atom_set=None):
     if fixed_atom_set is None:
         fixed_atom_set = []
@@ -520,3 +710,38 @@ def optimise_dimer_XTB(
         )
         structure = XTB_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
         structure.write(f"{output_dir}_opt.mol")
+
+
+def optimise_dimer_openmm(  # noqa: PLR0913
+    dimer: stk.Molecule,
+    output_dir: str,
+    *,
+    force_field: str = "openff_unconstrained-2.3.0.offxml",
+    max_iterations: int = 0,
+    tolerance: float = 10.0,
+    platform: str = "CPU",
+    num_cores: int = 1,
+    fixed_atom_set: list[int] | None = None,
+) -> None:
+    """Optimise ``dimer`` with OpenMM and write ``{output_dir}_opt.mol``.
+
+    ``output_dir/openmm_opt.out`` records the energies before and after
+    optimisation. A dimer whose ``_opt.mol`` already exists is skipped. The
+    other arguments are those of :class:`OpenMMDimer` and its
+    :meth:`~OpenMMDimer.optimize`.
+    """
+    output_file = pathlib.Path(f"{output_dir}_opt.mol")
+    if output_file.exists():
+        logger.info("Skipping dimer %s as it is already done", output_dir)
+        return
+
+    openmm_opt = OpenMMDimer(
+        force_field=force_field,
+        output_dir=output_dir,
+        max_iterations=max_iterations,
+        tolerance=tolerance,
+        platform=platform,
+        num_cores=num_cores,
+    )
+    structure = openmm_opt.optimize(mol=dimer, fixed_atom_set=fixed_atom_set)
+    structure.write(str(output_file))

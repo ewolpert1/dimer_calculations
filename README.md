@@ -11,7 +11,7 @@ The package can:
   geometric midpoints;
 - generate displaced, rotated, and optionally laterally shifted dimers;
 - reject configurations with atomic overlap or cage catenation; and
-- optimise accepted dimers with xTB, GULP, or MacroModel.
+- optimise accepted dimers with xTB, GULP, MacroModel, or OpenMM.
 
 ## Installation
 
@@ -61,6 +61,42 @@ The resolved values are available as `XTB_PATH`, `GULP_PATH`, and
 `SCHRODINGER_PATH` from `dimer_calculations.config`. Optimiser functions also
 accept executable paths directly.
 
+## OpenMM
+
+`optimise_dimer_openmm` optimises a dimer with an
+[OpenFF](https://openforcefield.org/) force field in
+[OpenMM](https://openmm.org/). It runs inside Python, so it needs no
+executable path, but the OpenFF packages are installed from conda-forge:
+
+```bash
+conda install -c conda-forge openmm openff-toolkit openff-interchange \
+  openff-nagl openff-nagl-models
+```
+
+The default force field, Sage 2.3.0 (`openff_unconstrained-2.3.0.offxml`),
+assigns partial charges with NAGL in seconds. Like the other optimisers, it
+writes the optimised dimer to `{output_dir}_opt.mol`, and
+`{output_dir}/openmm_opt.out` records the energy before and after
+optimisation.
+
+Atoms in `fixed_atom_set` keep their positions, which holds the two cages at
+the intended offset. Atom ids count from 0, as `Cage.fix_atom_set` returns
+them:
+
+```python
+from dimer_calculations import cage, optimiser_functions
+
+fixed_atom_set = cage.Cage.fix_atom_set(dimer, "NCCN", metal_atom=None)
+optimiser_functions.optimise_dimer_openmm(
+    dimer=dimer,
+    output_dir="OpenMM_shell_0_slide_0_rot_0",
+    fixed_atom_set=fixed_atom_set,
+)
+```
+
+This has been tested with OpenMM 8.2, OpenFF Toolkit 0.18, OpenFF Interchange
+0.5 and OpenFF NAGL 0.5.
+
 ## Basic workflow
 
 1. Load an `stk.Molecule` and place its centroid at the origin.
@@ -82,7 +118,8 @@ python -m pip install ".[dev]"
 python -m pytest
 ```
 
-The smoke test generates a dimer without invoking an external optimiser.
+The smoke test generates a dimer without invoking an external optimiser. The
+OpenMM tests are skipped unless OpenMM and OpenFF are installed.
 
 ## Citation
 

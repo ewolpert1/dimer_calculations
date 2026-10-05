@@ -108,5 +108,7 @@ module = [
   'scipy.*',
   'sklearn.*',
   'networkx.*',
+  'openmm.*',
+  'openff.*',
 ]
 ignore_missing_imports = true
